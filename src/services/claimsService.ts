@@ -8,13 +8,14 @@ export class ClaimsService {
    * Then appends the business ID to the desired role.
    *
    * Enforces constraints:
-   * 1. Compact claims to keep under 1000-byte Firebase limit (max 20 unique business ID assignments across o, m, s).
+   * 1. Compact claims to keep under 1000-byte Firebase limit (max unique business ID assignments across o, m, s).
    * 2. Returns the modified CustomClaims object.
    */
   public updateBusinessRole(
     currentClaims: CustomClaims,
     businessId: string,
-    role: 'o' | 'm' | 's'
+    role: 'o' | 'm' | 's',
+    maxLimit: number = 20
   ): CustomClaims {
     // 1. Initialize clean copies of arrays, filtering out the business ID if it exists
     const o = (currentClaims.o || []).filter((id) => id !== businessId);
@@ -30,10 +31,10 @@ export class ClaimsService {
       s.push(businessId);
     }
 
-    // 3. Count total entries to ensure we respect limit of 20
+    // 3. Count total entries to ensure we respect limit of maxLimit
     const totalEntries = o.length + m.length + s.length;
-    if (totalEntries > 20) {
-      throw new LimitExceededError('Limit exceeded: A user cannot be assigned to more than 20 total businesses across all roles.');
+    if (totalEntries > maxLimit) {
+      throw new LimitExceededError(`Limit exceeded: A user cannot be assigned to more than ${maxLimit} total businesses across all roles.`);
     }
 
     return {

@@ -35,14 +35,13 @@ describe('ClaimsService Unit Tests', () => {
     expect(updated.o).toEqual(['biz_1']);
   });
 
-  it('should throw a LimitExceededError if the user exceeds 20 total business ID assignments', () => {
-    const o = Array.from({ length: 10 }, (_, i) => `biz_o_${i}`);
-    const m = Array.from({ length: 10 }, (_, i) => `biz_m_${i}`);
-    const currentClaims: CustomClaims = { o, m, s: [] }; // Total of 20
+  it('should throw a LimitExceededError if the user exceeds the dynamic maxLimit', () => {
+    const o = Array.from({ length: 3 }, (_, i) => `biz_o_${i}`);
+    const currentClaims: CustomClaims = { o, m: [], s: [] }; // Total of 3
 
-    // Try adding one more (21st)
+    // Try adding a 4th with a maxLimit of 3
     expect(() => {
-      claimsService.updateBusinessRole(currentClaims, 'new_biz', 's');
+      claimsService.updateBusinessRole(currentClaims, 'new_biz', 's', 3);
     }).toThrow(LimitExceededError);
   });
 });
@@ -182,6 +181,64 @@ describe('AssignClaimsUseCase Auth & Validation Tests', () => {
     });
 
     expect(result.o).toContain('biz_100');
+  });
+
+  it('should allow Super Admin to remove or demote an Owner role', async () => {
+    const repo = mockFirebaseRepo();
+    const useCase = new AssignClaimsUseCase(repo, claimsService);
+
+    const caller: UserContext = {
+      uid: 'admin_1',
+      email: 'superadmin@example.com',
+      isSuperAdmin: true,
+      claims: { o: [], m: [], s: [] },
+    };
+
+    const targetUser: FirebaseUserRecord = {
+      localId: 'user_123',
+      email: 'target@example.com',
+      customAttributes: JSON.stringify({ o: ['biz_100'], m: [], s: [] }), // Target is currently owner
+    };
+
+    vi.spyOn(repo, 'getUserByEmail').mockResolvedValue(targetUser);
+    vi.spyOn(repo, 'setCustomClaims').mockResolvedValue();
+
+    const result = await useCase.execute(caller, {
+      targetEmail: 'target@example.com',
+      role: 'm', // Demote to Moderator
+      businessId: 'biz_100',
+    });
+
+    expect(result.o).not.toContain('biz_100');
+    expect(result.m).toContain('biz_100');
+  });
+
+  it('should prevent standard Business Owner from removing/demoting Owner role of another user', async () => {
+    const repo = mockFirebaseRepo();
+    const useCase = new AssignClaimsUseCase(repo, claimsService);
+
+    const caller: UserContext = {
+      uid: 'owner_1',
+      email: 'owner@example.com',
+      isSuperAdmin: false,
+      claims: { o: ['biz_100'], m: [], s: [] }, // Caller owns biz_100
+    };
+
+    const targetUser: FirebaseUserRecord = {
+      localId: 'user_123',
+      email: 'target@example.com',
+      customAttributes: JSON.stringify({ o: ['biz_100'], m: [], s: [] }), // Target is currently owner
+    };
+
+    vi.spyOn(repo, 'getUserByEmail').mockResolvedValue(targetUser);
+
+    await expect(
+      useCase.execute(caller, {
+        targetEmail: 'target@example.com',
+        role: 'm', // Trying to demote target to moderator
+        businessId: 'biz_100',
+      })
+    ).rejects.toThrow(/Only Super Admins are authorized to remove or demote an Owner role/);
   });
 });
 

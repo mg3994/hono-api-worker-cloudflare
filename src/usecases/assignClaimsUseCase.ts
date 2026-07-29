@@ -6,19 +6,22 @@ import { PermissionDeniedError, UserNotFoundError } from '../domain/errors';
 export class AssignClaimsUseCase {
   private firebaseRepo: IFirebaseRepository;
   private claimsService: ClaimsService;
+  private maxLimit: number;
 
-  constructor(firebaseRepo: IFirebaseRepository, claimsService: ClaimsService) {
+  constructor(firebaseRepo: IFirebaseRepository, claimsService: ClaimsService, maxLimit: number = 20) {
     this.firebaseRepo = firebaseRepo;
     this.claimsService = claimsService;
+    this.maxLimit = maxLimit;
   }
 
   /**
    * Assigns custom claims (owner, moderator, staff) of a business ID to a target email.
    *
    * Rules:
-   * 1. Super Admins can assign any role (o, m, s) for any business ID to any user.
+   * 1. Super Admins can assign any role (o, m, s) for any business ID to any user, and can remove/demote Owner roles.
    * 2. Owners (o) of a business can assign other owners, moderators, or staff to that business.
    * 3. Owners CANNOT downgrade themselves or assign themselves to other roles (m or s) for that business.
+   * 4. Only Super Admins can remove or demote an existing Owner role ('o') for any business.
    */
   async execute(caller: UserContext, request: AssignClaimRequest): Promise<CustomClaims> {
     const { targetEmail, role, businessId } = request;
@@ -58,8 +61,18 @@ export class AssignClaimsUseCase {
       }
     }
 
+    // Rule: "only super admin can remove the role of owner (i mean only super admin can remove custom claims of owner)"
+    // Check if the target user currently has 'o' (Owner) for this businessId
+    const targetIsCurrentlyOwner = currentClaims.o?.includes(businessId) || false;
+    // If they are currently owner, and the new requested role is NOT 'o' (meaning they are being removed/demoted from 'o')
+    if (targetIsCurrentlyOwner && role !== 'o') {
+      if (!isSuperAdmin) {
+        throw new PermissionDeniedError('Permission denied: Only Super Admins are authorized to remove or demote an Owner role.');
+      }
+    }
+
     // Determine the updated claims using the ClaimsService promotion/demotion logic
-    const updatedClaims = this.claimsService.updateBusinessRole(currentClaims, businessId, role);
+    const updatedClaims = this.claimsService.updateBusinessRole(currentClaims, businessId, role, this.maxLimit);
 
     // Save claims to Firebase auth
     await this.firebaseRepo.setCustomClaims(targetUser.localId, updatedClaims);

@@ -22,14 +22,18 @@ export function createContainer(env: CloudflareBindings): AppContainer {
 
   const serviceAccount = JSON.parse(serviceAccountStr) as FirebaseServiceAccount;
 
+  // Read MAX_ENTITIES_LIMIT dynamically from Cloudflare bindings (default to 20)
+  const maxLimitStr = env.MAX_ENTITIES_LIMIT || '20';
+  const maxLimit = parseInt(maxLimitStr, 10) || 20;
+
   // Repositories
   const firebaseRepository = new FirebaseRepository(serviceAccount);
 
   // Services
   const claimsService = new ClaimsService();
 
-  // UseCases (injecting dependencies)
-  const assignClaimsUseCase = new AssignClaimsUseCase(firebaseRepository, claimsService);
+  // UseCases (injecting dependencies and config)
+  const assignClaimsUseCase = new AssignClaimsUseCase(firebaseRepository, claimsService, maxLimit);
   const getUserClaimsUseCase = new GetUserClaimsUseCase(firebaseRepository);
 
   return {

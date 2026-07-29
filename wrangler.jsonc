@@ -2,5 +2,10 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "apiworker",
   "compatibility_date": "2025-08-03",
-  "main": "./src/index.tsx"
+  "main": "./src/index.tsx",
+  "vars": {
+    "SUPER_ADMINS": "manishgautammg7@gmail.com,manishgautammg3994@gmail.com,deepakankit14@gmail.com",
+    "FIREBASE_SERVICE_ACCOUNT_JSON": "",
+    "MAX_ENTITIES_LIMIT": "20"
+  }
 }
