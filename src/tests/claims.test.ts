@@ -1,9 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ClaimsService } from '../services/claimsService';
 import { AssignClaimsUseCase } from '../usecases/assignClaimsUseCase';
 import { IFirebaseRepository, FirebaseUserRecord } from '../repositories/firebaseRepository';
 import { UserContext, CustomClaims } from '../domain/types';
-import { PermissionDeniedError, LimitExceededError } from '../domain/errors';
+import { PermissionDeniedError, LimitExceededError, AuthenticationError } from '../domain/errors';
+import { TokenService } from '../services/tokenService';
+import * as firebaseUtils from '../services/firebaseUtils';
 
 describe('ClaimsService Unit Tests', () => {
   const claimsService = new ClaimsService();
@@ -180,5 +182,63 @@ describe('AssignClaimsUseCase Auth & Validation Tests', () => {
     });
 
     expect(result.o).toContain('biz_100');
+  });
+});
+
+describe('TokenService Unit Tests', () => {
+  const serviceAccount = {
+    project_id: 'test-project',
+    client_email: 'test@example.com',
+    private_key: 'test-key',
+  };
+
+  const superAdminsStr = 'admin1@test.com,admin2@test.com';
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should correctly parse token and match super admin list', async () => {
+    const mockDecodedToken = {
+      uid: 'admin_uid',
+      email: 'admin1@test.com',
+      o: ['biz_x'],
+      m: [],
+      s: [],
+    };
+
+    // Stub verifyFirebaseIdToken inside firebaseUtils
+    const verifySpy = vi.spyOn(firebaseUtils, 'verifyFirebaseIdToken').mockResolvedValue(mockDecodedToken);
+
+    const tokenService = new TokenService(serviceAccount, superAdminsStr);
+    const context = await tokenService.verifyToken('mock_jwt_token');
+
+    expect(verifySpy).toHaveBeenCalledWith('mock_jwt_token', 'test-project');
+    expect(context.uid).toBe('admin_uid');
+    expect(context.email).toBe('admin1@test.com');
+    expect(context.isSuperAdmin).toBe(true);
+    expect(context.claims.o).toContain('biz_x');
+  });
+
+  it('should identify non-super admin users correctly', async () => {
+    const mockDecodedToken = {
+      uid: 'user_uid',
+      email: 'regular@test.com',
+    };
+
+    vi.spyOn(firebaseUtils, 'verifyFirebaseIdToken').mockResolvedValue(mockDecodedToken);
+
+    const tokenService = new TokenService(serviceAccount, superAdminsStr);
+    const context = await tokenService.verifyToken('mock_jwt_token');
+
+    expect(context.isSuperAdmin).toBe(false);
+  });
+
+  it('should throw AuthenticationError when token verification fails', async () => {
+    vi.spyOn(firebaseUtils, 'verifyFirebaseIdToken').mockRejectedValue(new Error('Invalid signature'));
+
+    const tokenService = new TokenService(serviceAccount, superAdminsStr);
+
+    await expect(tokenService.verifyToken('bad_token')).rejects.toThrow(AuthenticationError);
   });
 });
