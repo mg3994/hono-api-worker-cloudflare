@@ -1,6 +1,7 @@
 import { IFirebaseRepository } from '../repositories/firebaseRepository';
 import { ClaimsService } from '../services/claimsService';
 import { CustomClaims, CustomClaimsSchema, AssignClaimRequest, UserContext } from '../domain/types';
+import { PermissionDeniedError, UserNotFoundError } from '../domain/errors';
 
 export class AssignClaimsUseCase {
   private firebaseRepo: IFirebaseRepository;
@@ -13,18 +14,6 @@ export class AssignClaimsUseCase {
 
   /**
    * Assigns custom claims (owner, moderator, staff) of a business ID to a target email.
-   *
-   * Permission Rules:
-   * 1. If calling user is a Super Admin:
-   *    - Allowed to assign any claim (o, m, s) for any business ID to any user.
-   * 2. If calling user is NOT a Super Admin, but is an Owner ('o') of the requested business ID:
-   *    - Allowed to assign any role ('o', 'm', 's') for that business ID to OTHER users.
-   *    - Enforces: Owner CANNOT assign themselves to a lower/different role of their own business.
-   *      Wait, is the check "owner cannot assign *themselves* as moderator or staff of its own business"?
-   *      Yes: "make sure owner can't assign itself as a moderator or staff of its own business"
-   *      Wait! We should block any owner of a business from self-assigning/modifying their own role to 'm' or 's' for that business.
-   * 3. If calling user is NOT a Super Admin and NOT an Owner of the business ID:
-   *    - Forbidden.
    */
   async execute(caller: UserContext, request: AssignClaimRequest): Promise<CustomClaims> {
     const { targetEmail, role, businessId } = request;
@@ -34,21 +23,20 @@ export class AssignClaimsUseCase {
     const isOwnerOfBusiness = caller.claims?.o?.includes(businessId) || false;
 
     if (!isSuperAdmin && !isOwnerOfBusiness) {
-      throw new Error('Permission denied: You must be a Super Admin or an Owner of this business to assign roles.');
+      throw new PermissionDeniedError('Permission denied: You must be a Super Admin or an Owner of this business to assign roles.');
     }
 
     // Owner cannot assign itself as a moderator or staff of its own business
-    // We should check if the targetEmail belongs to the caller's email, and they are trying to assign m or s.
     if (caller.email.toLowerCase() === targetEmail.toLowerCase()) {
       if (role !== 'o') {
-        throw new Error('Permission denied: An Owner cannot assign themselves as a moderator or staff of their own business.');
+        throw new PermissionDeniedError('Permission denied: An Owner cannot assign themselves as a moderator or staff of their own business.');
       }
     }
 
     // Fetch target user from firebase repository
     const targetUser = await this.firebaseRepo.getUserByEmail(targetEmail);
     if (!targetUser) {
-      throw new Error(`User with email "${targetEmail}" was not found in Firebase Auth.`);
+      throw new UserNotFoundError(`User with email "${targetEmail}" was not found in Firebase Auth.`);
     }
 
     // Parse target user's existing custom claims

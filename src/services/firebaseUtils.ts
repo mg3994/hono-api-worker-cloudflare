@@ -34,14 +34,22 @@ export function base64ToArrayBuffer(base64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
+// Private key CryptoKey caching map
+const privateKeyCache = new Map<string, CryptoKey>();
+
 // Parse PEM private key to CryptoKey
 export async function importPrivateKey(pem: string): Promise<CryptoKey> {
+  const cached = privateKeyCache.get(pem);
+  if (cached) {
+    return cached;
+  }
+
   const cleanPem = pem
     .replace(/-----BEGIN PRIVATE KEY-----/g, '')
     .replace(/-----END PRIVATE KEY-----/g, '')
     .replace(/\s+/g, '');
   const arrayBuffer = base64ToArrayBuffer(cleanPem);
-  return await crypto.subtle.importKey(
+  const key = await crypto.subtle.importKey(
     'pkcs8',
     arrayBuffer,
     {
@@ -51,6 +59,9 @@ export async function importPrivateKey(pem: string): Promise<CryptoKey> {
     false,
     ['sign']
   );
+
+  privateKeyCache.set(pem, key);
+  return key;
 }
 
 // Sign a JWT using Google RS256 Service Account Key

@@ -1,4 +1,5 @@
 import { CustomClaims } from '../domain/types';
+import { LimitExceededError } from '../domain/errors';
 
 export class ClaimsService {
   /**
@@ -32,7 +33,7 @@ export class ClaimsService {
     // 3. Count total entries to ensure we respect limit of 20
     const totalEntries = o.length + m.length + s.length;
     if (totalEntries > 20) {
-      throw new Error('Limit exceeded: A user cannot be assigned to more than 20 total businesses across all roles.');
+      throw new LimitExceededError('Limit exceeded: A user cannot be assigned to more than 20 total businesses across all roles.');
     }
 
     return {

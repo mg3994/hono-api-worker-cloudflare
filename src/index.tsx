@@ -1,8 +1,12 @@
 import { Hono } from 'hono'
 import { renderer } from './renderer'
 import api from './routes/api'
+import { globalErrorHandler } from './middlewares/errorHandler'
 
 const app = new Hono<{ Bindings: CloudflareBindings }>()
+
+// Centralized Global Error Handler
+app.onError(globalErrorHandler())
 
 // Serve standard Renderer for root index SPA React page
 app.use(renderer)

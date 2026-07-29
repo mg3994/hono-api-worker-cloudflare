@@ -3,6 +3,7 @@ import { ClaimsService } from '../services/claimsService';
 import { AssignClaimsUseCase } from '../usecases/assignClaimsUseCase';
 import { IFirebaseRepository, FirebaseUserRecord } from '../repositories/firebaseRepository';
 import { UserContext, CustomClaims } from '../domain/types';
+import { PermissionDeniedError, LimitExceededError } from '../domain/errors';
 
 describe('ClaimsService Unit Tests', () => {
   const claimsService = new ClaimsService();
@@ -32,7 +33,7 @@ describe('ClaimsService Unit Tests', () => {
     expect(updated.o).toEqual(['biz_1']);
   });
 
-  it('should throw an error if the user exceeds 20 total business ID assignments', () => {
+  it('should throw a LimitExceededError if the user exceeds 20 total business ID assignments', () => {
     const o = Array.from({ length: 10 }, (_, i) => `biz_o_${i}`);
     const m = Array.from({ length: 10 }, (_, i) => `biz_m_${i}`);
     const currentClaims: CustomClaims = { o, m, s: [] }; // Total of 20
@@ -40,7 +41,7 @@ describe('ClaimsService Unit Tests', () => {
     // Try adding one more (21st)
     expect(() => {
       claimsService.updateBusinessRole(currentClaims, 'new_biz', 's');
-    }).toThrow(/limit exceeded/i);
+    }).toThrow(LimitExceededError);
   });
 });
 
@@ -112,7 +113,7 @@ describe('AssignClaimsUseCase Auth & Validation Tests', () => {
     expect(repo.setCustomClaims).toHaveBeenCalled();
   });
 
-  it('should deny non-owner and non-super-admin from assigning claims', async () => {
+  it('should deny non-owner and non-super-admin from assigning claims with PermissionDeniedError', async () => {
     const repo = mockFirebaseRepo();
     const useCase = new AssignClaimsUseCase(repo, claimsService);
 
@@ -129,10 +130,10 @@ describe('AssignClaimsUseCase Auth & Validation Tests', () => {
         role: 'm',
         businessId: 'biz_100',
       })
-    ).rejects.toThrow(/permission denied/i);
+    ).rejects.toThrow(PermissionDeniedError);
   });
 
-  it('should prevent Owner from assigning themselves to a lower/different role of their own business', async () => {
+  it('should prevent Owner from assigning themselves to a lower/different role of their own business with PermissionDeniedError', async () => {
     const repo = mockFirebaseRepo();
     const useCase = new AssignClaimsUseCase(repo, claimsService);
 
@@ -149,7 +150,7 @@ describe('AssignClaimsUseCase Auth & Validation Tests', () => {
         role: 'm', // Trying to make themselves moderator of their own business
         businessId: 'biz_100',
       })
-    ).rejects.toThrow(/an owner cannot assign themselves as a moderator or staff/i);
+    ).rejects.toThrow(PermissionDeniedError);
   });
 
   it('should allow Owner to update themselves to Owner of their own business (noop or reinforce)', async () => {
