@@ -37,6 +37,9 @@ Decodes the caller's Firebase ID token from the `Authorization: Bearer <token>` 
 #### Headers
 - `Authorization: Bearer <Firebase_ID_Token>` (Required)
 
+#### Key Architectural Features
+- **`needsRefresh` Boolean:** The response automatically compares the caller's current `tokenClaims` (embedded in the JWT) with their live `latestClaims` fetched directly from Firebase Auth. If a permission was changed since they logged in, `needsRefresh` becomes `true`. The client React SPA can detect this and immediately invoke `getIdToken(true)` in the background to cleanly refresh their token, keeping permissions synchronized and lagging-free!
+
 #### Successful Response (`200 OK`)
 ```json
 {
@@ -54,7 +57,8 @@ Decodes the caller's Firebase ID token from the `Authorization: Bearer <token>` 
       "o": ["118774185466060931"],
       "m": ["118774185466060932"],
       "s": ["118774185466060933"]
-    }
+    },
+    "needsRefresh": true
   }
 }
 ```

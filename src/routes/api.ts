@@ -18,6 +18,7 @@ api.use('*', authMiddleware());
  * GET /api/me
  * Decodes the calling user's current token claims, and also does a fresh lookup
  * in Firebase Auth DB to get their absolute latest claims.
+ * Returns a helper boolean "needsRefresh" if the token is out of sync with Firebase.
  */
 api.get('/me', async (c) => {
   const user = c.get('user') as UserContext;
@@ -30,12 +31,16 @@ api.get('/me', async (c) => {
     // Fetch fresh claims directly from Firebase
     const latestClaims = await getUserClaimsUseCase.execute(user.email);
 
+    // Compare token claims vs latest claims to determine if the client needs to force-refresh their ID token
+    const needsRefresh = JSON.stringify(user.claims) !== JSON.stringify(latestClaims);
+
     const responseData = {
       uid: user.uid,
       email: user.email,
       isSuperAdmin: user.isSuperAdmin,
       tokenClaims: user.claims,
       latestClaims,
+      needsRefresh,
     };
 
     return c.json<StandardResponse>({
