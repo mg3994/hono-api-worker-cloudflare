@@ -14,6 +14,11 @@ export class AssignClaimsUseCase {
 
   /**
    * Assigns custom claims (owner, moderator, staff) of a business ID to a target email.
+   *
+   * Rules:
+   * 1. Super Admins can assign any role (o, m, s) for any business ID to any user.
+   * 2. Owners (o) of a business can assign other owners, moderators, or staff to that business.
+   * 3. Owners CANNOT downgrade themselves or assign themselves to other roles (m or s) for that business.
    */
   async execute(caller: UserContext, request: AssignClaimRequest): Promise<CustomClaims> {
     const { targetEmail, role, businessId } = request;
@@ -26,10 +31,10 @@ export class AssignClaimsUseCase {
       throw new PermissionDeniedError('Permission denied: You must be a Super Admin or an Owner of this business to assign roles.');
     }
 
-    // Owner cannot assign itself as a moderator or staff of its own business
+    // Owner cannot downgrade themselves or assign themselves to other roles (m, s) for that business
     if (caller.email.toLowerCase() === targetEmail.toLowerCase()) {
       if (role !== 'o') {
-        throw new PermissionDeniedError('Permission denied: An Owner cannot assign themselves as a moderator or staff of their own business.');
+        throw new PermissionDeniedError('Permission denied: An Owner cannot downgrade themselves or assign themselves to other roles for their own business.');
       }
     }
 

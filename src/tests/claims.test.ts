@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ClaimsService } from '../services/claimsService';
 import { AssignClaimsUseCase } from '../usecases/assignClaimsUseCase';
 import { IFirebaseRepository, FirebaseUserRecord } from '../repositories/firebaseRepository';
@@ -152,7 +152,7 @@ describe('AssignClaimsUseCase Auth & Validation Tests', () => {
         role: 'm', // Trying to make themselves moderator of their own business
         businessId: 'biz_100',
       })
-    ).rejects.toThrow(PermissionDeniedError);
+    ).rejects.toThrow(/An Owner cannot downgrade themselves or assign themselves to other roles for their own business/);
   });
 
   it('should allow Owner to update themselves to Owner of their own business (noop or reinforce)', async () => {
@@ -207,7 +207,6 @@ describe('TokenService Unit Tests', () => {
       s: [],
     };
 
-    // Stub verifyFirebaseIdToken inside firebaseUtils
     const verifySpy = vi.spyOn(firebaseUtils, 'verifyFirebaseIdToken').mockResolvedValue(mockDecodedToken);
 
     const tokenService = new TokenService(serviceAccount, superAdminsStr);
