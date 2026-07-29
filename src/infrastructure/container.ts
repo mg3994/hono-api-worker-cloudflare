@@ -34,7 +34,7 @@ export function createContainer(env: CloudflareBindings): AppContainer {
 
   // UseCases (injecting dependencies and config)
   const assignClaimsUseCase = new AssignClaimsUseCase(firebaseRepository, claimsService, maxLimit);
-  const getUserClaimsUseCase = new GetUserClaimsUseCase(firebaseRepository);
+  const getUserClaimsUseCase = new GetUserClaimsUseCase(firebaseRepository, claimsService);
 
   return {
     firebaseRepository,

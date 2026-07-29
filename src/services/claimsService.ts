@@ -1,7 +1,30 @@
-import { CustomClaims } from '../domain/types';
+import { CustomClaims, CustomClaimsSchema } from '../domain/types';
 import { LimitExceededError } from '../domain/errors';
 
 export class ClaimsService {
+  /**
+   * Safely parses and validates a stringified custom claims JSON from Firebase Auth.
+   * Returns a valid CustomClaims object with default arrays if empty or invalid.
+   */
+  public parseClaims(customAttributes?: string): CustomClaims {
+    const defaults: CustomClaims = { o: [], m: [], s: [] };
+    if (!customAttributes) {
+      return defaults;
+    }
+
+    try {
+      const parsed = JSON.parse(customAttributes);
+      const parsedResult = CustomClaimsSchema.safeParse(parsed);
+      if (parsedResult.success) {
+        return parsedResult.data;
+      }
+    } catch (err) {
+      // Fallback to empty if parse or validation fails
+    }
+
+    return defaults;
+  }
+
   /**
    * Promotes or demotes a user for a given business ID.
    * Removes the business ID from all other roles (o, m, s) to ensure they have exactly one role.

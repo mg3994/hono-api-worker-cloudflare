@@ -1,11 +1,14 @@
 import { IFirebaseRepository } from '../repositories/firebaseRepository';
-import { UserContext, CustomClaims, CustomClaimsSchema } from '../domain/types';
+import { ClaimsService } from '../services/claimsService';
+import { CustomClaims } from '../domain/types';
 
 export class GetUserClaimsUseCase {
   private firebaseRepo: IFirebaseRepository;
+  private claimsService: ClaimsService;
 
-  constructor(firebaseRepo: IFirebaseRepository) {
+  constructor(firebaseRepo: IFirebaseRepository, claimsService: ClaimsService) {
     this.firebaseRepo = firebaseRepo;
+    this.claimsService = claimsService;
   }
 
   /**
@@ -18,19 +21,7 @@ export class GetUserClaimsUseCase {
       return { o: [], m: [], s: [] };
     }
 
-    let currentClaims: CustomClaims = { o: [], m: [], s: [] };
-    if (targetUser.customAttributes) {
-      try {
-        const parsed = JSON.parse(targetUser.customAttributes);
-        const parsedResult = CustomClaimsSchema.safeParse(parsed);
-        if (parsedResult.success) {
-          currentClaims = parsedResult.data;
-        }
-      } catch (err) {
-        // Fallback to empty if parse fails
-      }
-    }
-
-    return currentClaims;
+    // Safely parse user's custom claims using centralized claims parsing service
+    return this.claimsService.parseClaims(targetUser.customAttributes);
   }
 }

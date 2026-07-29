@@ -1,6 +1,6 @@
 import { IFirebaseRepository } from '../repositories/firebaseRepository';
 import { ClaimsService } from '../services/claimsService';
-import { CustomClaims, CustomClaimsSchema, AssignClaimRequest, UserContext } from '../domain/types';
+import { CustomClaims, AssignClaimRequest, UserContext } from '../domain/types';
 import { PermissionDeniedError, UserNotFoundError } from '../domain/errors';
 
 export class AssignClaimsUseCase {
@@ -47,19 +47,8 @@ export class AssignClaimsUseCase {
       throw new UserNotFoundError(`User with email "${targetEmail}" was not found in Firebase Auth.`);
     }
 
-    // Parse target user's existing custom claims
-    let currentClaims: CustomClaims = { o: [], m: [], s: [] };
-    if (targetUser.customAttributes) {
-      try {
-        const parsed = JSON.parse(targetUser.customAttributes);
-        const parsedResult = CustomClaimsSchema.safeParse(parsed);
-        if (parsedResult.success) {
-          currentClaims = parsedResult.data;
-        }
-      } catch (err) {
-        // Fallback to empty if parse fails
-      }
-    }
+    // Safely parse target user's existing custom claims (using centralized DRY ClaimsService)
+    const currentClaims = this.claimsService.parseClaims(targetUser.customAttributes);
 
     // Rule: "only super admin can remove the role of owner (i mean only super admin can remove custom claims of owner)"
     // Check if the target user currently has 'o' (Owner) for this businessId
