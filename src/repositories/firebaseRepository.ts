@@ -1,7 +1,11 @@
 import { FirebaseServiceAccount, getGoogleAccessToken } from '../services/firebaseUtils';
-import { CustomClaims, CustomClaimsSchema } from '../domain/types';
+import { CustomClaims } from '../domain/types';
 
 export interface FirebaseUserRecord {
+  /**
+   * The unique Firebase Auth User ID (UID).
+   * In raw Firebase Identity Toolkit REST APIs, this is named `localId`.
+   */
   localId: string;
   email: string;
   customAttributes?: string; // stringified custom claims JSON
@@ -60,7 +64,7 @@ export class FirebaseRepository implements IFirebaseRepository {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        localId: uid,
+        localId: uid, // localId is the UID in the Google REST API
         customAttributes: JSON.stringify(claims),
       }),
     });
