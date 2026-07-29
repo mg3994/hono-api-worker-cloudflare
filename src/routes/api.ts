@@ -1,11 +1,14 @@
 import { Hono } from 'hono';
 import { sValidator } from '@hono/standard-validator';
 import { authMiddleware } from '../middlewares/authMiddleware';
+import { containerMiddleware } from '../middlewares/containerMiddleware';
 import { UserContext, AssignClaimRequestSchema, StandardResponse } from '../domain/types';
-import { createContainer } from '../infrastructure/container';
 import { ValidationError } from '../domain/errors';
 
 const api = new Hono<{ Bindings: CloudflareBindings }>();
+
+// Bind the Clean Architecture container middleware
+api.use('*', containerMiddleware());
 
 // All API endpoints require Bearer auth middleware
 api.use('*', authMiddleware());
@@ -18,9 +21,9 @@ api.use('*', authMiddleware());
  */
 api.get('/me', async (c) => {
   const user = c.get('user') as UserContext;
+  const container = c.get('container');
 
-  // Resolve dependencies dynamically using the Clean Architecture container factory
-  const container = createContainer(c.env);
+  // Resolve UseCase cleanly from injected container
   const latestClaims = await container.getUserClaimsUseCase.execute(user.email);
 
   // Compare token claims vs latest claims to determine if the client needs to force-refresh their ID token
@@ -56,9 +59,9 @@ api.post(
   async (c) => {
     const user = c.get('user') as UserContext;
     const payload = c.req.valid('json');
+    const container = c.get('container');
 
-    // Resolve dependencies dynamically using the Clean Architecture container factory
-    const container = createContainer(c.env);
+    // Resolve UseCase cleanly from injected container
     const updatedClaims = await container.assignClaimsUseCase.execute(user, payload);
 
     return c.json<StandardResponse>({
