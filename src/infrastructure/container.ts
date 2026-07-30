@@ -28,7 +28,7 @@ export function createContainer(env: CloudflareBindings): AppContainer {
   const maxLimit = parseInt(maxLimitStr, 10) || 20;
 
   // Services
-  const googleAuthService = new GoogleAuthService(serviceAccount);
+  const googleAuthService = new GoogleAuthService(serviceAccount, env.KV);
   const claimsService = new ClaimsService();
 
   // Repositories (injecting googleAuthService dependency)
