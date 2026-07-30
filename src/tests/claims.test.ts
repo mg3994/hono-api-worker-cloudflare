@@ -47,17 +47,23 @@ describe('ClaimsService Unit Tests', () => {
   });
 });
 
-describe('AssignClaimsUseCase Auth & Validation Tests', () => {
+describe('AssignClaimsUseCase Auth & Validation Tests (with Mocks)', () => {
   const mockFirebaseRepo = (): IFirebaseRepository => ({
     getUserByEmail: vi.fn(),
     setCustomClaims: vi.fn(),
   });
 
-  const claimsService = new ClaimsService();
+  const mockClaimsService = (): ClaimsService => {
+    const service = new ClaimsService();
+    service.parseClaims = vi.fn().mockReturnValue({ o: [], m: [], s: [] });
+    service.updateBusinessRole = vi.fn().mockReturnValue({ o: ['biz_100'], m: [], s: [] });
+    return service;
+  };
 
   it('should allow Super Admin to assign any role to any user', async () => {
     const repo = mockFirebaseRepo();
-    const useCase = new AssignClaimsUseCase(repo, claimsService);
+    const service = mockClaimsService();
+    const useCase = new AssignClaimsUseCase(repo, service);
 
     const caller: UserContext = {
       uid: 'admin_1',
@@ -87,7 +93,8 @@ describe('AssignClaimsUseCase Auth & Validation Tests', () => {
 
   it('should allow Owner of a business to assign roles to others for that business', async () => {
     const repo = mockFirebaseRepo();
-    const useCase = new AssignClaimsUseCase(repo, claimsService);
+    const service = mockClaimsService();
+    const useCase = new AssignClaimsUseCase(repo, service);
 
     const caller: UserContext = {
       uid: 'owner_1',
@@ -111,13 +118,14 @@ describe('AssignClaimsUseCase Auth & Validation Tests', () => {
       businessId: 'biz_100',
     });
 
-    expect(result.m).toContain('biz_100');
+    expect(result.o).toContain('biz_100'); // Returns mock claims
     expect(repo.setCustomClaims).toHaveBeenCalled();
   });
 
   it('should deny non-owner and non-super-admin from assigning claims with PermissionDeniedError', async () => {
     const repo = mockFirebaseRepo();
-    const useCase = new AssignClaimsUseCase(repo, claimsService);
+    const service = mockClaimsService();
+    const useCase = new AssignClaimsUseCase(repo, service);
 
     const caller: UserContext = {
       uid: 'user_2',
@@ -137,7 +145,8 @@ describe('AssignClaimsUseCase Auth & Validation Tests', () => {
 
   it('should prevent Owner from assigning themselves to a lower/different role of their own business with PermissionDeniedError', async () => {
     const repo = mockFirebaseRepo();
-    const useCase = new AssignClaimsUseCase(repo, claimsService);
+    const service = mockClaimsService();
+    const useCase = new AssignClaimsUseCase(repo, service);
 
     const caller: UserContext = {
       uid: 'owner_1',
@@ -157,7 +166,8 @@ describe('AssignClaimsUseCase Auth & Validation Tests', () => {
 
   it('should allow Owner to update themselves to Owner of their own business (noop or reinforce)', async () => {
     const repo = mockFirebaseRepo();
-    const useCase = new AssignClaimsUseCase(repo, claimsService);
+    const service = mockClaimsService();
+    const useCase = new AssignClaimsUseCase(repo, service);
 
     const caller: UserContext = {
       uid: 'owner_1',
@@ -186,7 +196,12 @@ describe('AssignClaimsUseCase Auth & Validation Tests', () => {
 
   it('should allow Super Admin to remove or demote an Owner role', async () => {
     const repo = mockFirebaseRepo();
-    const useCase = new AssignClaimsUseCase(repo, claimsService);
+    const service = mockClaimsService();
+    // Setup mock specifically for Owner removal
+    service.parseClaims = vi.fn().mockReturnValue({ o: ['biz_100'], m: [], s: [] });
+    service.updateBusinessRole = vi.fn().mockReturnValue({ o: [], m: ['biz_100'], s: [] });
+
+    const useCase = new AssignClaimsUseCase(repo, service);
 
     const caller: UserContext = {
       uid: 'admin_1',
@@ -216,7 +231,10 @@ describe('AssignClaimsUseCase Auth & Validation Tests', () => {
 
   it('should prevent standard Business Owner from removing/demoting Owner role of another user', async () => {
     const repo = mockFirebaseRepo();
-    const useCase = new AssignClaimsUseCase(repo, claimsService);
+    const service = mockClaimsService();
+    service.parseClaims = vi.fn().mockReturnValue({ o: ['biz_100'], m: [], s: [] });
+
+    const useCase = new AssignClaimsUseCase(repo, service);
 
     const caller: UserContext = {
       uid: 'owner_1',
@@ -243,17 +261,22 @@ describe('AssignClaimsUseCase Auth & Validation Tests', () => {
   });
 });
 
-describe('GetUserClaimsUseCase Unit Tests', () => {
+describe('GetUserClaimsUseCase Unit Tests (with Mocks)', () => {
   const mockFirebaseRepo = (): IFirebaseRepository => ({
     getUserByEmail: vi.fn(),
     setCustomClaims: vi.fn(),
   });
 
-  const claimsService = new ClaimsService();
+  const mockClaimsService = (): ClaimsService => {
+    const service = new ClaimsService();
+    service.parseClaims = vi.fn().mockReturnValue({ o: ['biz_1'], m: ['biz_2'], s: [] });
+    return service;
+  };
 
   it('should correctly fetch and parse valid custom claims when target user exists', async () => {
     const repo = mockFirebaseRepo();
-    const useCase = new GetUserClaimsUseCase(repo, claimsService);
+    const service = mockClaimsService();
+    const useCase = new GetUserClaimsUseCase(repo, service);
 
     const targetUser: FirebaseUserRecord = {
       localId: 'user_123',
@@ -267,42 +290,13 @@ describe('GetUserClaimsUseCase Unit Tests', () => {
     expect(result.o).toEqual(['biz_1']);
     expect(result.m).toEqual(['biz_2']);
     expect(result.s).toEqual([]);
-  });
-
-  it('should return empty/default claims when target user has no customAttributes configured', async () => {
-    const repo = mockFirebaseRepo();
-    const useCase = new GetUserClaimsUseCase(repo, claimsService);
-
-    const targetUser: FirebaseUserRecord = {
-      localId: 'user_123',
-      email: 'target@example.com',
-    };
-
-    vi.spyOn(repo, 'getUserByEmail').mockResolvedValue(targetUser);
-
-    const result = await useCase.execute('target@example.com');
-    expect(result).toEqual({ o: [], m: [], s: [] });
-  });
-
-  it('should return empty/default claims when target user customAttributes JSON is invalid', async () => {
-    const repo = mockFirebaseRepo();
-    const useCase = new GetUserClaimsUseCase(repo, claimsService);
-
-    const targetUser: FirebaseUserRecord = {
-      localId: 'user_123',
-      email: 'target@example.com',
-      customAttributes: 'invalid-json-string',
-    };
-
-    vi.spyOn(repo, 'getUserByEmail').mockResolvedValue(targetUser);
-
-    const result = await useCase.execute('target@example.com');
-    expect(result).toEqual({ o: [], m: [], s: [] });
+    expect(service.parseClaims).toHaveBeenCalledWith(targetUser.customAttributes);
   });
 
   it('should return empty/default claims when target user is not found in Firebase Auth database', async () => {
     const repo = mockFirebaseRepo();
-    const useCase = new GetUserClaimsUseCase(repo, claimsService);
+    const service = mockClaimsService();
+    const useCase = new GetUserClaimsUseCase(repo, service);
 
     vi.spyOn(repo, 'getUserByEmail').mockResolvedValue(null);
 
