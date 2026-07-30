@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ClaimsService } from '../services/claimsService';
+import { IClaimsService } from '../domain/claimsService';
 import { AssignClaimsUseCase } from '../usecases/assignClaimsUseCase';
 import { GetUserClaimsUseCase } from '../usecases/getUserClaimsUseCase';
 import { IFirebaseRepository, FirebaseUserRecord } from '../repositories/firebaseRepository';
@@ -54,7 +55,7 @@ describe('AssignClaimsUseCase Auth & Validation Tests (with Mocks)', () => {
     setCustomClaims: vi.fn(),
   });
 
-  const mockClaimsService = (): ClaimsService => {
+  const mockClaimsService = (): IClaimsService => {
     const service = new ClaimsService();
     service.parseClaims = vi.fn().mockReturnValue({ o: [], m: [], s: [] });
     service.updateBusinessRole = vi.fn().mockReturnValue({ o: ['biz_100'], m: [], s: [] });
@@ -285,7 +286,7 @@ describe('GetUserClaimsUseCase Unit Tests (with Mocks)', () => {
     setCustomClaims: vi.fn(),
   });
 
-  const mockClaimsService = (): ClaimsService => {
+  const mockClaimsService = (): IClaimsService => {
     const service = new ClaimsService();
     service.parseClaims = vi.fn().mockReturnValue({ o: ['biz_1'], m: ['biz_2'], s: [] });
     return service;

@@ -1,5 +1,6 @@
 import { FirebaseRepository, IFirebaseRepository } from '../repositories/firebaseRepository';
 import { ClaimsService } from '../services/claimsService';
+import { IClaimsService } from '../domain/claimsService';
 import { GoogleAuthService } from '../services/googleAuthService';
 import { ConsoleLogger } from './consoleLogger';
 import { AssignClaimsUseCase } from '../usecases/assignClaimsUseCase';
@@ -8,7 +9,7 @@ import { FirebaseServiceAccount } from '../services/firebaseUtils';
 
 export interface AppContainer {
   firebaseRepository: IFirebaseRepository;
-  claimsService: ClaimsService;
+  claimsService: IClaimsService;
   assignClaimsUseCase: AssignClaimsUseCase;
   getUserClaimsUseCase: GetUserClaimsUseCase;
 }

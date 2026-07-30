@@ -1,9 +1,10 @@
+import { ITokenService } from '../domain/tokenService';
 import { IFirebaseTokenVerifier } from './firebaseTokenVerifier';
 import { ILogger } from '../domain/logger';
 import { UserContext, CustomClaims, CustomClaimsSchema } from '../domain/types';
 import { AuthenticationError } from '../domain/errors';
 
-export class TokenService {
+export class TokenService implements ITokenService {
   private tokenVerifier: IFirebaseTokenVerifier;
   private projectId: string;
   private superAdminsList: string[];

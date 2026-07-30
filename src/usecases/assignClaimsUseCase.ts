@@ -1,18 +1,18 @@
 import { IFirebaseRepository } from '../repositories/firebaseRepository';
-import { ClaimsService } from '../services/claimsService';
+import { IClaimsService } from '../domain/claimsService';
 import { ILogger } from '../domain/logger';
 import { CustomClaims, AssignClaimRequest, UserContext } from '../domain/types';
 import { PermissionDeniedError, UserNotFoundError } from '../domain/errors';
 
 export class AssignClaimsUseCase {
   private firebaseRepo: IFirebaseRepository;
-  private claimsService: ClaimsService;
+  private claimsService: IClaimsService;
   private logger: ILogger;
   private maxLimit: number;
 
   constructor(
     firebaseRepo: IFirebaseRepository,
-    claimsService: ClaimsService,
+    claimsService: IClaimsService,
     logger: ILogger,
     maxLimit: number = 20
   ) {

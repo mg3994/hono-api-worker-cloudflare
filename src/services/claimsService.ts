@@ -1,7 +1,8 @@
+import { IClaimsService } from '../domain/claimsService';
 import { CustomClaims, CustomClaimsSchema } from '../domain/types';
 import { LimitExceededError } from '../domain/errors';
 
-export class ClaimsService {
+export class ClaimsService implements IClaimsService {
   /**
    * Safely parses and validates a stringified custom claims JSON from Firebase Auth.
    * Returns a valid CustomClaims object with default arrays if empty or invalid.

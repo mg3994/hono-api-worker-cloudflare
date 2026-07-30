@@ -1,12 +1,12 @@
 import { IFirebaseRepository } from '../repositories/firebaseRepository';
-import { ClaimsService } from '../services/claimsService';
+import { IClaimsService } from '../domain/claimsService';
 import { CustomClaims } from '../domain/types';
 
 export class GetUserClaimsUseCase {
   private firebaseRepo: IFirebaseRepository;
-  private claimsService: ClaimsService;
+  private claimsService: IClaimsService;
 
-  constructor(firebaseRepo: IFirebaseRepository, claimsService: ClaimsService) {
+  constructor(firebaseRepo: IFirebaseRepository, claimsService: IClaimsService) {
     this.firebaseRepo = firebaseRepo;
     this.claimsService = claimsService;
   }
