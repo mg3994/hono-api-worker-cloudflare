@@ -47,6 +47,16 @@ export class FirebaseTokenVerifier implements IFirebaseTokenVerifier {
       keys: data.keys,
       expiry: Date.now() + maxAge * 1000,
     };
+
+    // Clean Architecture & Best Practice: Prune the imported publicKeyCryptoKeyCache.
+    // Removes any pre-imported CryptoKeys whose kid is no longer valid in Google's newly fetched rotated keys list.
+    const validKids = new Set(data.keys.map((k) => k.kid));
+    for (const kid of publicKeyCryptoKeyCache.keys()) {
+      if (!validKids.has(kid)) {
+        publicKeyCryptoKeyCache.delete(kid);
+      }
+    }
+
     return data.keys;
   }
 
