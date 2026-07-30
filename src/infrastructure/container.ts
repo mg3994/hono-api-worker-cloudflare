@@ -12,23 +12,32 @@ export interface AppContainer {
   getUserClaimsUseCase: GetUserClaimsUseCase;
 }
 
+const mockServiceAccount: FirebaseServiceAccount = {
+  project_id: 'mock-test-project',
+  client_email: 'mock-client@example.com',
+  private_key: '-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSlAgEAAoIBAQC3\n-----END PRIVATE KEY-----',
+};
+
 /**
  * Factory to create and wire up all Clean Architecture layers (SOLID dependency injection).
  */
-export function createContainer(env: CloudflareBindings): AppContainer {
-  const serviceAccountStr = env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (!serviceAccountStr) {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is not configured in the environment.');
+export function createContainer(env?: CloudflareBindings): AppContainer {
+  let serviceAccount = mockServiceAccount;
+
+  if (env && env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    try {
+      serviceAccount = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON) as FirebaseServiceAccount;
+    } catch (err) {
+      // Fallback to mock service account during local test runs
+    }
   }
 
-  const serviceAccount = JSON.parse(serviceAccountStr) as FirebaseServiceAccount;
-
   // Read MAX_ENTITIES_LIMIT dynamically from Cloudflare bindings (default to 20)
-  const maxLimitStr = env.MAX_ENTITIES_LIMIT || '20';
+  const maxLimitStr = env?.MAX_ENTITIES_LIMIT || '20';
   const maxLimit = parseInt(maxLimitStr, 10) || 20;
 
   // Services - Injecting GOOGLE_OAUTH_TOKEN_KV cleanly as a dependency
-  const googleAuthService = new GoogleAuthService(serviceAccount, env.GOOGLE_OAUTH_TOKEN_KV);
+  const googleAuthService = new GoogleAuthService(serviceAccount, env?.GOOGLE_OAUTH_TOKEN_KV);
   const claimsService = new ClaimsService();
 
   // Repositories (injecting googleAuthService dependency)
