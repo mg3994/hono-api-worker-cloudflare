@@ -7,6 +7,7 @@ import { UserContext, CustomClaims } from '../domain/types';
 import { PermissionDeniedError, LimitExceededError, AuthenticationError } from '../domain/errors';
 import { TokenService } from '../services/tokenService';
 import { IFirebaseTokenVerifier } from '../services/firebaseTokenVerifier';
+import { ILogger } from '../domain/logger';
 
 describe('ClaimsService Unit Tests', () => {
   const claimsService = new ClaimsService();
@@ -60,10 +61,17 @@ describe('AssignClaimsUseCase Auth & Validation Tests (with Mocks)', () => {
     return service;
   };
 
+  const mockLogger = (): ILogger => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  });
+
   it('should allow Super Admin to assign any role to any user', async () => {
     const repo = mockFirebaseRepo();
     const service = mockClaimsService();
-    const useCase = new AssignClaimsUseCase(repo, service);
+    const logger = mockLogger();
+    const useCase = new AssignClaimsUseCase(repo, service, logger);
 
     const caller: UserContext = {
       uid: 'admin_1',
@@ -89,12 +97,14 @@ describe('AssignClaimsUseCase Auth & Validation Tests (with Mocks)', () => {
 
     expect(result.o).toContain('biz_100');
     expect(repo.setCustomClaims).toHaveBeenCalledWith('user_123', expect.any(Object));
+    expect(logger.info).toHaveBeenCalled();
   });
 
   it('should allow Owner of a business to assign roles to others for that business', async () => {
     const repo = mockFirebaseRepo();
     const service = mockClaimsService();
-    const useCase = new AssignClaimsUseCase(repo, service);
+    const logger = mockLogger();
+    const useCase = new AssignClaimsUseCase(repo, service, logger);
 
     const caller: UserContext = {
       uid: 'owner_1',
@@ -120,12 +130,14 @@ describe('AssignClaimsUseCase Auth & Validation Tests (with Mocks)', () => {
 
     expect(result.o).toContain('biz_100'); // Returns mock claims
     expect(repo.setCustomClaims).toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalled();
   });
 
   it('should deny non-owner and non-super-admin from assigning claims with PermissionDeniedError', async () => {
     const repo = mockFirebaseRepo();
     const service = mockClaimsService();
-    const useCase = new AssignClaimsUseCase(repo, service);
+    const logger = mockLogger();
+    const useCase = new AssignClaimsUseCase(repo, service, logger);
 
     const caller: UserContext = {
       uid: 'user_2',
@@ -146,7 +158,8 @@ describe('AssignClaimsUseCase Auth & Validation Tests (with Mocks)', () => {
   it('should prevent Owner from assigning themselves to a lower/different role of their own business with PermissionDeniedError', async () => {
     const repo = mockFirebaseRepo();
     const service = mockClaimsService();
-    const useCase = new AssignClaimsUseCase(repo, service);
+    const logger = mockLogger();
+    const useCase = new AssignClaimsUseCase(repo, service, logger);
 
     const caller: UserContext = {
       uid: 'owner_1',
@@ -167,7 +180,8 @@ describe('AssignClaimsUseCase Auth & Validation Tests (with Mocks)', () => {
   it('should allow Owner to update themselves to Owner of their own business (noop or reinforce)', async () => {
     const repo = mockFirebaseRepo();
     const service = mockClaimsService();
-    const useCase = new AssignClaimsUseCase(repo, service);
+    const logger = mockLogger();
+    const useCase = new AssignClaimsUseCase(repo, service, logger);
 
     const caller: UserContext = {
       uid: 'owner_1',
@@ -192,16 +206,18 @@ describe('AssignClaimsUseCase Auth & Validation Tests (with Mocks)', () => {
     });
 
     expect(result.o).toContain('biz_100');
+    expect(logger.info).toHaveBeenCalled();
   });
 
   it('should allow Super Admin to remove or demote an Owner role', async () => {
     const repo = mockFirebaseRepo();
     const service = mockClaimsService();
+    const logger = mockLogger();
     // Setup mock specifically for Owner removal
     service.parseClaims = vi.fn().mockReturnValue({ o: ['biz_100'], m: [], s: [] });
     service.updateBusinessRole = vi.fn().mockReturnValue({ o: [], m: ['biz_100'], s: [] });
 
-    const useCase = new AssignClaimsUseCase(repo, service);
+    const useCase = new AssignClaimsUseCase(repo, service, logger);
 
     const caller: UserContext = {
       uid: 'admin_1',
@@ -227,14 +243,16 @@ describe('AssignClaimsUseCase Auth & Validation Tests (with Mocks)', () => {
 
     expect(result.o).not.toContain('biz_100');
     expect(result.m).toContain('biz_100');
+    expect(logger.info).toHaveBeenCalled();
   });
 
   it('should prevent standard Business Owner from removing/demoting Owner role of another user', async () => {
     const repo = mockFirebaseRepo();
     const service = mockClaimsService();
+    const logger = mockLogger();
     service.parseClaims = vi.fn().mockReturnValue({ o: ['biz_100'], m: [], s: [] });
 
-    const useCase = new AssignClaimsUseCase(repo, service);
+    const useCase = new AssignClaimsUseCase(repo, service, logger);
 
     const caller: UserContext = {
       uid: 'owner_1',

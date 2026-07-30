@@ -1,16 +1,24 @@
 import { IFirebaseRepository } from '../repositories/firebaseRepository';
 import { ClaimsService } from '../services/claimsService';
+import { ILogger } from '../domain/logger';
 import { CustomClaims, AssignClaimRequest, UserContext } from '../domain/types';
 import { PermissionDeniedError, UserNotFoundError } from '../domain/errors';
 
 export class AssignClaimsUseCase {
   private firebaseRepo: IFirebaseRepository;
   private claimsService: ClaimsService;
+  private logger: ILogger;
   private maxLimit: number;
 
-  constructor(firebaseRepo: IFirebaseRepository, claimsService: ClaimsService, maxLimit: number = 20) {
+  constructor(
+    firebaseRepo: IFirebaseRepository,
+    claimsService: ClaimsService,
+    logger: ILogger,
+    maxLimit: number = 20
+  ) {
     this.firebaseRepo = firebaseRepo;
     this.claimsService = claimsService;
+    this.logger = logger;
     this.maxLimit = maxLimit;
   }
 
@@ -72,10 +80,9 @@ export class AssignClaimsUseCase {
     // Save claims to Firebase auth
     await this.firebaseRepo.setCustomClaims(targetUser.localId, updatedClaims);
 
-    // Descriptive console logging for upgrades/demotions/assignments (Audit Trails)
-    const utcTimestamp = new Date().toISOString();
-    console.log(
-      `[${utcTimestamp}] AUDIT LOG: Caller <${caller.email}> assigned Role <${role}> on Business ID <${businessId}> for Target User <${targetEmail}>. Previous Roles Removed: [${removedRoles.join(', ')}].`
+    // Descriptive logging for upgrades/demotions/assignments via injected audit logger
+    this.logger.info(
+      `AUDIT LOG: Caller <${caller.email}> assigned Role <${role}> on Business ID <${businessId}> for Target User <${targetEmail}>. Previous Roles Removed: [${removedRoles.join(', ')}].`
     );
 
     return updatedClaims;
