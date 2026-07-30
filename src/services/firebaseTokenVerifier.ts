@@ -1,4 +1,5 @@
 import { base64urlDecode } from './firebaseUtils';
+import { ILogger } from '../domain/logger';
 
 export interface DecodedTokenPayload {
   uid: string;
@@ -19,9 +20,11 @@ const publicKeyCryptoKeyCache = new Map<string, CryptoKey>();
 
 export class FirebaseTokenVerifier implements IFirebaseTokenVerifier {
   private publicKeyKv?: KVNamespace;
+  private logger?: ILogger;
 
-  constructor(publicKeyKv?: KVNamespace) {
+  constructor(publicKeyKv?: KVNamespace, logger?: ILogger) {
     this.publicKeyKv = publicKeyKv;
+    this.logger = logger;
   }
 
   /**
@@ -29,6 +32,8 @@ export class FirebaseTokenVerifier implements IFirebaseTokenVerifier {
    * Cleans up local memory key cache for expired/rotated kids.
    */
   private async fetchAndCacheGoogleJwks(): Promise<any[]> {
+    this.logger?.info('Fetching fresh JWK set from Google securetoken robot API...');
+
     const response = await fetch(
       'https://www.googleapis.com/robot/v1/metadata/jwk/securetoken@system.gserviceaccount.com'
     );
@@ -48,6 +53,7 @@ export class FirebaseTokenVerifier implements IFirebaseTokenVerifier {
     const data = (await response.json()) as { keys: any[] };
 
     // Prune the in-memory publicKeyCryptoKeyCache for rotated keys
+    this.logger?.info('Pruning outdated verified public keys from in-memory cache on JWK rotation...');
     const validKids = new Set(data.keys.map((k) => k.kid));
     for (const kid of publicKeyCryptoKeyCache.keys()) {
       if (!validKids.has(kid)) {

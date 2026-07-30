@@ -1,4 +1,5 @@
 import { IFirebaseTokenVerifier } from './firebaseTokenVerifier';
+import { ILogger } from '../domain/logger';
 import { UserContext, CustomClaims, CustomClaimsSchema } from '../domain/types';
 import { AuthenticationError } from '../domain/errors';
 
@@ -6,10 +7,17 @@ export class TokenService {
   private tokenVerifier: IFirebaseTokenVerifier;
   private projectId: string;
   private superAdminsList: string[];
+  private logger?: ILogger;
 
-  constructor(tokenVerifier: IFirebaseTokenVerifier, projectId: string, superAdminsStr: string) {
+  constructor(
+    tokenVerifier: IFirebaseTokenVerifier,
+    projectId: string,
+    superAdminsStr: string,
+    logger?: ILogger
+  ) {
     this.tokenVerifier = tokenVerifier;
     this.projectId = projectId;
+    this.logger = logger;
     this.superAdminsList = superAdminsStr
       ? superAdminsStr.split(',').map((e) => e.trim().toLowerCase())
       : [];
@@ -47,6 +55,7 @@ export class TokenService {
         claims,
       };
     } catch (err: any) {
+      this.logger?.warn(`Token verification failed: ${err.message}`);
       throw new AuthenticationError(err.message);
     }
   }

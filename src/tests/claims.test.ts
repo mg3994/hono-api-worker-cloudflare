@@ -331,6 +331,12 @@ describe('TokenService Unit Tests', () => {
     verifyToken: vi.fn(),
   });
 
+  const mockLogger = (): ILogger => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  });
+
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -346,8 +352,9 @@ describe('TokenService Unit Tests', () => {
 
     const verifier = mockTokenVerifier();
     const verifySpy = vi.spyOn(verifier, 'verifyToken').mockResolvedValue(mockDecodedToken);
+    const logger = mockLogger();
 
-    const tokenService = new TokenService(verifier, projectId, superAdminsStr);
+    const tokenService = new TokenService(verifier, projectId, superAdminsStr, logger);
     const context = await tokenService.verifyToken('mock_jwt_token');
 
     expect(verifySpy).toHaveBeenCalledWith('mock_jwt_token', 'test-project');
@@ -365,8 +372,9 @@ describe('TokenService Unit Tests', () => {
 
     const verifier = mockTokenVerifier();
     vi.spyOn(verifier, 'verifyToken').mockResolvedValue(mockDecodedToken);
+    const logger = mockLogger();
 
-    const tokenService = new TokenService(verifier, projectId, superAdminsStr);
+    const tokenService = new TokenService(verifier, projectId, superAdminsStr, logger);
     const context = await tokenService.verifyToken('mock_jwt_token');
 
     expect(context.isSuperAdmin).toBe(false);
@@ -375,9 +383,11 @@ describe('TokenService Unit Tests', () => {
   it('should throw AuthenticationError when token verification fails', async () => {
     const verifier = mockTokenVerifier();
     vi.spyOn(verifier, 'verifyToken').mockRejectedValue(new Error('Invalid signature'));
+    const logger = mockLogger();
 
-    const tokenService = new TokenService(verifier, projectId, superAdminsStr);
+    const tokenService = new TokenService(verifier, projectId, superAdminsStr, logger);
 
     await expect(tokenService.verifyToken('bad_token')).rejects.toThrow(AuthenticationError);
+    expect(logger.warn).toHaveBeenCalled();
   });
 });

@@ -2,6 +2,7 @@ import { MiddlewareHandler } from 'hono';
 import { TokenService } from '../services/tokenService';
 import { FirebaseTokenVerifier } from '../services/firebaseTokenVerifier';
 import { FirebaseServiceAccount } from '../services/firebaseUtils';
+import { ConsoleLogger } from '../infrastructure/consoleLogger';
 import { AuthenticationError } from '../domain/errors';
 import { UserContext } from '../domain/types';
 
@@ -50,9 +51,10 @@ export const authMiddleware = (): MiddlewareHandler<{ Bindings: CloudflareBindin
     const projectId = serviceAccount.project_id;
     const superAdminsStr = c.env?.SUPER_ADMINS || '';
 
-    // Clean Architecture & Dependency Injection: Inject verifier dependency (with FIREBASE_PUBLIC_KEY_KV binding) into TokenService
-    const tokenVerifier = new FirebaseTokenVerifier(c.env?.FIREBASE_PUBLIC_KEY_KV);
-    const tokenService = new TokenService(tokenVerifier, projectId, superAdminsStr);
+    // Clean Architecture & Dependency Injection: Instantiate logger and inject it cleanly
+    const logger = new ConsoleLogger();
+    const tokenVerifier = new FirebaseTokenVerifier(c.env?.FIREBASE_PUBLIC_KEY_KV, logger);
+    const tokenService = new TokenService(tokenVerifier, projectId, superAdminsStr, logger);
 
     const userContext = await tokenService.verifyToken(token);
 
