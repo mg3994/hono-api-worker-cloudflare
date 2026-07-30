@@ -77,22 +77,27 @@ export class GoogleAuthService implements IGoogleAuthService {
       throw new Error(`Failed to obtain Google access token: ${errText}`);
     }
 
-    const data = (await response.json()) as { access_token: string };
+    const data = (await response.json()) as { access_token: string; expires_in?: number };
 
-    // Store in-memory
-    const expiryTime = nowMs + 3600 * 1000;
+    // Dynamically retrieve expires_in (seconds) from the Google API response
+    const expiresInSeconds = typeof data.expires_in === 'number' ? data.expires_in : 3600;
+
+    // Compute the exact expiration timestamp
+    const expiryTime = nowMs + expiresInSeconds * 1000;
     cachedAccessToken = {
       token: data.access_token,
       expiry: expiryTime,
     };
 
-    // Store in globally distributed Cloudflare KV Namespace with 55 minutes TTL (3300 seconds)
+    // Store in globally distributed Cloudflare KV Namespace with dynamic expires_in TTL (adjusted with buffer)
     if (this.kvNamespace) {
       try {
+        // Subtraction of 300 seconds (5 minutes) ensures we never return an expired token close to the threshold
+        const bufferTtl = Math.max(60, expiresInSeconds - 300);
         await this.kvNamespace.put(
           kvKey,
           JSON.stringify(cachedAccessToken),
-          { expirationTtl: 3300 }
+          { expirationTtl: bufferTtl }
         );
       } catch (err) {
         console.warn('GoogleAuthService: Failed to write token to KV cache:', err);
