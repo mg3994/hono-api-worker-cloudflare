@@ -2,10 +2,11 @@ import { FirebaseRepository, IFirebaseRepository } from '../repositories/firebas
 import { ClaimsService } from '../services/claimsService';
 import { IClaimsService } from '../domain/claimsService';
 import { GoogleAuthService } from '../services/googleAuthService';
+import { JwtSigner } from '../services/jwtSigner';
 import { ConsoleLogger } from './consoleLogger';
 import { AssignClaimsUseCase } from '../usecases/assignClaimsUseCase';
 import { GetUserClaimsUseCase } from '../usecases/getUserClaimsUseCase';
-import { FirebaseServiceAccount } from '../services/firebaseUtils';
+import { FirebaseServiceAccount } from '../domain/types';
 
 export interface AppContainer {
   firebaseRepository: IFirebaseRepository;
@@ -29,8 +30,9 @@ export function createContainer(env: CloudflareBindings): AppContainer {
   const maxLimitStr = env.MAX_ENTITIES_LIMIT || '20';
   const maxLimit = parseInt(maxLimitStr, 10) || 20;
 
-  // Services - Injecting GOOGLE_OAUTH_TOKEN_KV cleanly as a dependency
-  const googleAuthService = new GoogleAuthService(serviceAccount, env.GOOGLE_OAUTH_TOKEN_KV);
+  // Services - Injecting dependencies cleanly (using c.env.KV for token cache)
+  const jwtSigner = new JwtSigner(serviceAccount);
+  const googleAuthService = new GoogleAuthService(serviceAccount, jwtSigner, env.KV);
   const claimsService = new ClaimsService();
   const logger = new ConsoleLogger();
 
