@@ -21,6 +21,7 @@ All responses follow a uniform JSON structure:
 {
   "success": false,
   "error": {
+    "code": "ERROR_CODE", // Machine-readable programmatic error identifier
     "message": "Human readable error description",
     "details": { ... } // Optional error-specific metadata or validation issues
   }
@@ -69,6 +70,7 @@ Returned when the compulsory token is missing, expired, or bears an invalid sign
 {
   "success": false,
   "error": {
+    "code": "UNAUTHORIZED",
     "message": "Authentication failed",
     "details": "Token has expired"
   }
@@ -121,6 +123,7 @@ Returned when payload data schema validation fails (e.g. invalid email format, m
 {
   "success": false,
   "error": {
+    "code": "VALIDATION_FAILED",
     "message": "Validation failed",
     "details": [
       {
@@ -140,6 +143,7 @@ Returned when the target user email cannot be resolved to an active account insi
 {
   "success": false,
   "error": {
+    "code": "NOT_FOUND",
     "message": "User with email \"nonexistent_user@gmail.com\" was not found in Firebase Auth."
   }
 }
@@ -151,6 +155,7 @@ Returned when adding the new role assignment exceeds the maximum threshold allow
 {
   "success": false,
   "error": {
+    "code": "LIMIT_EXCEEDED",
     "message": "Limit exceeded: A user cannot be assigned to more than 20 total businesses across all roles."
   }
 }
@@ -162,6 +167,7 @@ Returned when a user attempts to modify roles for a business ID where they are n
 {
   "success": false,
   "error": {
+    "code": "FORBIDDEN",
     "message": "Permission denied: You must be a Super Admin or an Owner of this business to assign roles."
   }
 }
@@ -173,6 +179,7 @@ Returned when an Owner tries to modify their own email to Moderator or Staff of 
 {
   "success": false,
   "error": {
+    "code": "FORBIDDEN",
     "message": "Permission denied: An Owner cannot downgrade themselves or assign themselves to other roles for their own business."
   }
 }
@@ -184,6 +191,7 @@ Returned when a standard Owner attempts to demote or remove the Owner role (`o`)
 {
   "success": false,
   "error": {
+    "code": "FORBIDDEN",
     "message": "Permission denied: Only Super Admins are authorized to remove or demote an Owner role."
   }
 }

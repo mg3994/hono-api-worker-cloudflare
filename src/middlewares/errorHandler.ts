@@ -9,6 +9,7 @@ export const globalErrorHandler = (): ErrorHandler => {
       const response: StandardResponse = {
         success: false,
         error: {
+          code: err.errorCode,
           message: err.message,
           ...(err instanceof ValidationError ? { details: err.details } : {}),
         },
@@ -21,6 +22,7 @@ export const globalErrorHandler = (): ErrorHandler => {
     const fallbackResponse: StandardResponse = {
       success: false,
       error: {
+        code: 'INTERNAL_SERVER_ERROR',
         message: 'Internal server error',
         details: err.message,
       },

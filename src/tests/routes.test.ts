@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import app from '../index';
 
 describe('Hono Routes Integration Tests', () => {
@@ -20,6 +20,7 @@ describe('Hono Routes Integration Tests', () => {
 
     const body = await response.json() as any;
     expect(body.success).toBe(false);
+    expect(body.error.code).toBe('UNAUTHORIZED');
     expect(body.error.message).toContain('Authentication required');
   });
 
@@ -34,6 +35,7 @@ describe('Hono Routes Integration Tests', () => {
 
     const body = await response.json() as any;
     expect(body.success).toBe(false);
+    expect(body.error.code).toBe('UNAUTHORIZED');
     expect(body.error.message).toContain('Missing or invalid Authorization header');
   });
 });
