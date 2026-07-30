@@ -1,4 +1,4 @@
-import { FirebaseServiceAccount, getGoogleAccessToken } from '../services/firebaseUtils';
+import { IGoogleAuthService } from '../services/googleAuthService';
 import { CustomClaims } from '../domain/types';
 
 export interface FirebaseUserRecord {
@@ -17,14 +17,14 @@ export interface IFirebaseRepository {
 }
 
 export class FirebaseRepository implements IFirebaseRepository {
-  private serviceAccount: FirebaseServiceAccount;
+  private googleAuthService: IGoogleAuthService;
 
-  constructor(serviceAccount: FirebaseServiceAccount) {
-    this.serviceAccount = serviceAccount;
+  constructor(googleAuthService: IGoogleAuthService) {
+    this.googleAuthService = googleAuthService;
   }
 
   private async getHeaders(): Promise<HeadersInit> {
-    const accessToken = await getGoogleAccessToken(this.serviceAccount);
+    const accessToken = await this.googleAuthService.getAccessToken();
     return {
       'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',

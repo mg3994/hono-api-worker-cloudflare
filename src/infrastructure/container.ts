@@ -1,5 +1,6 @@
 import { FirebaseRepository, IFirebaseRepository } from '../repositories/firebaseRepository';
 import { ClaimsService } from '../services/claimsService';
+import { GoogleAuthService } from '../services/googleAuthService';
 import { AssignClaimsUseCase } from '../usecases/assignClaimsUseCase';
 import { GetUserClaimsUseCase } from '../usecases/getUserClaimsUseCase';
 import { FirebaseServiceAccount } from '../services/firebaseUtils';
@@ -26,11 +27,12 @@ export function createContainer(env: CloudflareBindings): AppContainer {
   const maxLimitStr = env.MAX_ENTITIES_LIMIT || '20';
   const maxLimit = parseInt(maxLimitStr, 10) || 20;
 
-  // Repositories
-  const firebaseRepository = new FirebaseRepository(serviceAccount);
-
   // Services
+  const googleAuthService = new GoogleAuthService(serviceAccount);
   const claimsService = new ClaimsService();
+
+  // Repositories (injecting googleAuthService dependency)
+  const firebaseRepository = new FirebaseRepository(googleAuthService);
 
   // UseCases (injecting dependencies and config)
   const assignClaimsUseCase = new AssignClaimsUseCase(firebaseRepository, claimsService, maxLimit);
