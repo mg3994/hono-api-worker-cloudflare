@@ -14,18 +14,21 @@ export interface IFirebaseTokenVerifier {
   verifyToken(token: string, projectId: string): Promise<DecodedTokenPayload>;
 }
 
-// Module-level caches to persist JWKs and imported CryptoKeys across different incoming requests
-// on the same Cloudflare Worker instance. This avoids redundant network calls and CPU key-import overhead.
-let cachedJwks: { keys: any[]; expiry: number } | null = null;
+// Module-level in-memory cache to persist imported CryptoKeys locally on the edge instance
 const publicKeyCryptoKeyCache = new Map<string, CryptoKey>();
 
 export class FirebaseTokenVerifier implements IFirebaseTokenVerifier {
+  private publicKeyKv?: KVNamespace;
 
-  private async getFirebaseJwks(): Promise<any[]> {
-    if (cachedJwks && cachedJwks.expiry > Date.now()) {
-      return cachedJwks.keys;
-    }
+  constructor(publicKeyKv?: KVNamespace) {
+    this.publicKeyKv = publicKeyKv;
+  }
 
+  /**
+   * Fetches fresh JWKs from Google and caches them in Cloudflare KV.
+   * Cleans up local memory key cache for expired/rotated kids.
+   */
+  private async fetchAndCacheGoogleJwks(): Promise<any[]> {
     const response = await fetch(
       'https://www.googleapis.com/robot/v1/metadata/jwk/securetoken@system.gserviceaccount.com'
     );
@@ -43,17 +46,27 @@ export class FirebaseTokenVerifier implements IFirebaseTokenVerifier {
     }
 
     const data = (await response.json()) as { keys: any[] };
-    cachedJwks = {
-      keys: data.keys,
-      expiry: Date.now() + maxAge * 1000,
-    };
 
-    // Clean Architecture & Best Practice: Prune the imported publicKeyCryptoKeyCache.
-    // Removes any pre-imported CryptoKeys whose kid is no longer valid in Google's newly fetched rotated keys list.
+    // Prune the in-memory publicKeyCryptoKeyCache for rotated keys
     const validKids = new Set(data.keys.map((k) => k.kid));
     for (const kid of publicKeyCryptoKeyCache.keys()) {
       if (!validKids.has(kid)) {
         publicKeyCryptoKeyCache.delete(kid);
+      }
+    }
+
+    // Cache each newly fetched JWK in globally distributed Cloudflare KV with Google's exact Cache-Control TTL
+    if (this.publicKeyKv) {
+      for (const key of data.keys) {
+        try {
+          await this.publicKeyKv.put(
+            `jwk_kid_${key.kid}`,
+            JSON.stringify(key),
+            { expirationTtl: Math.max(60, maxAge) } // Minimum TTL of 60s as per Cloudflare constraints
+          );
+        } catch (err) {
+          console.warn(`FirebaseTokenVerifier: Failed to write JWK for kid "${key.kid}" to KV:`, err);
+        }
       }
     }
 
@@ -115,8 +128,26 @@ export class FirebaseTokenVerifier implements IFirebaseTokenVerifier {
     // Retrieve or import the matching public key
     let publicKey = publicKeyCryptoKeyCache.get(header.kid);
     if (!publicKey) {
-      const jwks = await this.getFirebaseJwks();
-      const matchingJwk = jwks.find((key) => key.kid === header.kid);
+      let matchingJwk: any = null;
+
+      // Try retrieving the JWK from Cloudflare KV cache first
+      if (this.publicKeyKv) {
+        try {
+          const cachedJwkStr = await this.publicKeyKv.get(`jwk_kid_${header.kid}`);
+          if (cachedJwkStr) {
+            matchingJwk = JSON.parse(cachedJwkStr);
+          }
+        } catch (err) {
+          console.warn(`FirebaseTokenVerifier: Failed to read JWK for kid "${header.kid}" from KV:`, err);
+        }
+      }
+
+      // If missing in KV, fetch fresh keys from Google (which populates the KV cache)
+      if (!matchingJwk) {
+        const jwks = await this.fetchAndCacheGoogleJwks();
+        matchingJwk = jwks.find((key) => key.kid === header.kid);
+      }
+
       if (!matchingJwk) {
         throw new Error('No matching public key found for kid');
       }

@@ -39,8 +39,8 @@ export const authMiddleware = (): MiddlewareHandler<{ Bindings: CloudflareBindin
     const projectId = serviceAccount.project_id;
     const superAdminsStr = c.env.SUPER_ADMINS || '';
 
-    // Clean Architecture & Dependency Injection: Inject verifier dependency into TokenService
-    const tokenVerifier = new FirebaseTokenVerifier();
+    // Clean Architecture & Dependency Injection: Inject verifier dependency (with PUBLIC_KEY_KV binding) into TokenService
+    const tokenVerifier = new FirebaseTokenVerifier(c.env.PUBLIC_KEY_KV);
     const tokenService = new TokenService(tokenVerifier, projectId, superAdminsStr);
 
     const userContext = await tokenService.verifyToken(token);
