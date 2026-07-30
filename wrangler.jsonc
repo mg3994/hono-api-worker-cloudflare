@@ -10,12 +10,12 @@
   },
   "kv_namespaces": [
     {
-      "binding": "KV",
-      "id": "apiworker_cache_kv"
+      "binding": "GOOGLE_OAUTH_TOKEN_KV",
+      "id": "apiworker_google_oauth_token_kv"
     },
     {
-      "binding": "PUBLIC_KEY_KV",
-      "id": "apiworker_public_key_kv"
+      "binding": "FIREBASE_PUBLIC_KEY_KV",
+      "id": "apiworker_firebase_public_key_kv"
     }
   ]
 }

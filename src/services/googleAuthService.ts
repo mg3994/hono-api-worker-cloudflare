@@ -1,4 +1,5 @@
-import { FirebaseServiceAccount, signJwt } from './firebaseUtils';
+import { IJwtSigner } from '../domain/jwtSigner';
+import { FirebaseServiceAccount } from '../domain/types';
 
 export interface IGoogleAuthService {
   getAccessToken(): Promise<string>;
@@ -9,10 +10,12 @@ let cachedAccessToken: { token: string; expiry: number } | null = null;
 
 export class GoogleAuthService implements IGoogleAuthService {
   private serviceAccount: FirebaseServiceAccount;
+  private jwtSigner: IJwtSigner;
   private kvNamespace?: KVNamespace;
 
-  constructor(serviceAccount: FirebaseServiceAccount, kvNamespace?: KVNamespace) {
+  constructor(serviceAccount: FirebaseServiceAccount, jwtSigner: IJwtSigner, kvNamespace?: KVNamespace) {
     this.serviceAccount = serviceAccount;
+    this.jwtSigner = jwtSigner;
     this.kvNamespace = kvNamespace;
   }
 
@@ -59,7 +62,8 @@ export class GoogleAuthService implements IGoogleAuthService {
       iat,
     };
 
-    const jwt = await signJwt(payload, this.serviceAccount);
+    // Clean Architecture & SOLID: Delegate signing completely to injected IJwtSigner interface!
+    const jwt = await this.jwtSigner.signJwt(payload);
 
     const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',

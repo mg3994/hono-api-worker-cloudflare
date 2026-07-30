@@ -1,8 +1,4 @@
 import { MiddlewareHandler } from 'hono';
-import { TokenService } from '../services/tokenService';
-import { FirebaseTokenVerifier } from '../services/firebaseTokenVerifier';
-import { FirebaseServiceAccount } from '../domain/types';
-import { ConsoleLogger } from '../infrastructure/consoleLogger';
 import { AuthenticationError } from '../domain/errors';
 import { UserContext } from '../domain/types';
 
@@ -12,14 +8,9 @@ declare module 'hono' {
   }
 }
 
-const mockServiceAccount: FirebaseServiceAccount = {
-  project_id: 'mock-test-project',
-  client_email: 'mock-client@example.com',
-  private_key: 'mock-key',
-};
-
 /**
  * Middleware that parses and verifies the Bearer ID Token if present.
+ * Resolves the TokenService cleanly from the injected Clean Architecture dependency container.
  * If the Authorization header is missing or invalid, it gracefully lets the request proceed
  * and sets c.get('user') to null, supporting optional authentication (e.g. for payments).
  * Throws an AuthenticationError ONLY if a Bearer token is provided but is expired/invalid.
@@ -36,27 +27,13 @@ export const authMiddleware = (): MiddlewareHandler<{ Bindings: CloudflareBindin
 
     const token = authHeader.substring(7);
 
-    // Instantiate token validation components
-    const serviceAccountStr = c.env?.FIREBASE_SERVICE_ACCOUNT_JSON;
-    let serviceAccount = mockServiceAccount;
-
-    if (serviceAccountStr) {
-      try {
-        serviceAccount = JSON.parse(serviceAccountStr) as FirebaseServiceAccount;
-      } catch (err) {
-        // Fallback to mock in test modes
-      }
+    // Clean Architecture & SOLID: Resolve TokenService from the request-scoped Container
+    const container = c.get('container');
+    if (!container) {
+      throw new Error('Dependency Injection Container has not been initialized.');
     }
 
-    const projectId = serviceAccount.project_id;
-    const superAdminsStr = c.env?.SUPER_ADMINS || '';
-
-    // Clean Architecture & Dependency Injection: Instantiate logger and inject it cleanly (injecting c.env.PUBLIC_KEY_KV)
-    const logger = new ConsoleLogger();
-    const tokenVerifier = new FirebaseTokenVerifier(c.env?.PUBLIC_KEY_KV, logger);
-    const tokenService = new TokenService(tokenVerifier, projectId, superAdminsStr, logger);
-
-    const userContext = await tokenService.verifyToken(token);
+    const userContext = await container.tokenService.verifyToken(token);
 
     c.set('user', userContext);
     await next();
