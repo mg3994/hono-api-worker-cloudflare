@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ClaimsService } from '../services/claimsService';
 import { AssignClaimsUseCase } from '../usecases/assignClaimsUseCase';
+import { GetUserClaimsUseCase } from '../usecases/getUserClaimsUseCase';
 import { IFirebaseRepository, FirebaseUserRecord } from '../repositories/firebaseRepository';
 import { UserContext, CustomClaims } from '../domain/types';
 import { PermissionDeniedError, LimitExceededError, AuthenticationError } from '../domain/errors';
@@ -239,6 +240,74 @@ describe('AssignClaimsUseCase Auth & Validation Tests', () => {
         businessId: 'biz_100',
       })
     ).rejects.toThrow(/Only Super Admins are authorized to remove or demote an Owner role/);
+  });
+});
+
+describe('GetUserClaimsUseCase Unit Tests', () => {
+  const mockFirebaseRepo = (): IFirebaseRepository => ({
+    getUserByEmail: vi.fn(),
+    setCustomClaims: vi.fn(),
+  });
+
+  const claimsService = new ClaimsService();
+
+  it('should correctly fetch and parse valid custom claims when target user exists', async () => {
+    const repo = mockFirebaseRepo();
+    const useCase = new GetUserClaimsUseCase(repo, claimsService);
+
+    const targetUser: FirebaseUserRecord = {
+      localId: 'user_123',
+      email: 'target@example.com',
+      customAttributes: JSON.stringify({ o: ['biz_1'], m: ['biz_2'], s: [] }),
+    };
+
+    vi.spyOn(repo, 'getUserByEmail').mockResolvedValue(targetUser);
+
+    const result = await useCase.execute('target@example.com');
+    expect(result.o).toEqual(['biz_1']);
+    expect(result.m).toEqual(['biz_2']);
+    expect(result.s).toEqual([]);
+  });
+
+  it('should return empty/default claims when target user has no customAttributes configured', async () => {
+    const repo = mockFirebaseRepo();
+    const useCase = new GetUserClaimsUseCase(repo, claimsService);
+
+    const targetUser: FirebaseUserRecord = {
+      localId: 'user_123',
+      email: 'target@example.com',
+    };
+
+    vi.spyOn(repo, 'getUserByEmail').mockResolvedValue(targetUser);
+
+    const result = await useCase.execute('target@example.com');
+    expect(result).toEqual({ o: [], m: [], s: [] });
+  });
+
+  it('should return empty/default claims when target user customAttributes JSON is invalid', async () => {
+    const repo = mockFirebaseRepo();
+    const useCase = new GetUserClaimsUseCase(repo, claimsService);
+
+    const targetUser: FirebaseUserRecord = {
+      localId: 'user_123',
+      email: 'target@example.com',
+      customAttributes: 'invalid-json-string',
+    };
+
+    vi.spyOn(repo, 'getUserByEmail').mockResolvedValue(targetUser);
+
+    const result = await useCase.execute('target@example.com');
+    expect(result).toEqual({ o: [], m: [], s: [] });
+  });
+
+  it('should return empty/default claims when target user is not found in Firebase Auth database', async () => {
+    const repo = mockFirebaseRepo();
+    const useCase = new GetUserClaimsUseCase(repo, claimsService);
+
+    vi.spyOn(repo, 'getUserByEmail').mockResolvedValue(null);
+
+    const result = await useCase.execute('nonexistent@example.com');
+    expect(result).toEqual({ o: [], m: [], s: [] });
   });
 });
 
