@@ -60,11 +60,23 @@ export class AssignClaimsUseCase {
       }
     }
 
+    // Audit trace calculations: Find out what roles are being removed before we merge
+    const removedRoles: string[] = [];
+    if (currentClaims.o?.includes(businessId)) removedRoles.push('o');
+    if (currentClaims.m?.includes(businessId)) removedRoles.push('m');
+    if (currentClaims.s?.includes(businessId)) removedRoles.push('s');
+
     // Determine the updated claims using the ClaimsService promotion/demotion logic
     const updatedClaims = this.claimsService.updateBusinessRole(currentClaims, businessId, role, this.maxLimit);
 
     // Save claims to Firebase auth
     await this.firebaseRepo.setCustomClaims(targetUser.localId, updatedClaims);
+
+    // Descriptive console logging for upgrades/demotions/assignments (Audit Trails)
+    const utcTimestamp = new Date().toISOString();
+    console.log(
+      `[${utcTimestamp}] AUDIT LOG: Caller <${caller.email}> assigned Role <${role}> on Business ID <${businessId}> for Target User <${targetEmail}>. Previous Roles Removed: [${removedRoles.join(', ')}].`
+    );
 
     return updatedClaims;
   }
