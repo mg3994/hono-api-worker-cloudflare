@@ -63,7 +63,8 @@ Decodes the caller's Firebase ID token from the `Authorization: Bearer <token>` 
 }
 ```
 
-#### Error Response (`401 Unauthorized`)
+#### Authentication Error (`401 Unauthorized`)
+Returned when the compulsory token is missing, expired, or bears an invalid signature.
 ```json
 {
   "success": false,
@@ -115,7 +116,7 @@ Assigns a business role (Owner, Moderator, Staff) for a given business ID to a t
 ```
 
 #### Validation Error (`400 Bad Request`)
-Returned when schema validation fails (e.g. invalid email format, missing fields, incorrect role values).
+Returned when payload data schema validation fails (e.g. invalid email format, missing fields, incorrect role values).
 ```json
 {
   "success": false,
@@ -129,6 +130,61 @@ Returned when schema validation fails (e.g. invalid email format, missing fields
         "message": "Role must be 'o', 'm', or 's'"
       }
     ]
+  }
+}
+```
+
+#### Target User Not Found (`400 Bad Request`)
+Returned when the target user email cannot be resolved to an active account inside the Firebase Auth database.
+```json
+{
+  "success": false,
+  "error": {
+    "message": "User with email \"nonexistent_user@gmail.com\" was not found in Firebase Auth."
+  }
+}
+```
+
+#### Entities Capacity Limit Exceeded (`400 Bad Request`)
+Returned when adding the new role assignment exceeds the maximum threshold allowed for that user, protecting the 1000-byte token size limit.
+```json
+{
+  "success": false,
+  "error": {
+    "message": "Limit exceeded: A user cannot be assigned to more than 20 total businesses across all roles."
+  }
+}
+```
+
+#### Action Not Authorized / Non-Owner Error (`403 Forbidden`)
+Returned when a user attempts to modify roles for a business ID where they are neither a Super Admin nor an Owner.
+```json
+{
+  "success": false,
+  "error": {
+    "message": "Permission denied: You must be a Super Admin or an Owner of this business to assign roles."
+  }
+}
+```
+
+#### Self-Downgrade Prevention Error (`403 Forbidden`)
+Returned when an Owner tries to modify their own email to Moderator or Staff of their own business.
+```json
+{
+  "success": false,
+  "error": {
+    "message": "Permission denied: An Owner cannot downgrade themselves or assign themselves to other roles for their own business."
+  }
+}
+```
+
+#### Owner Demotion Guardrails Error (`403 Forbidden`)
+Returned when a standard Owner attempts to demote or remove the Owner role (`o`) of another user. This operation is restricted exclusively to Super Admins.
+```json
+{
+  "success": false,
+  "error": {
+    "message": "Permission denied: Only Super Admins are authorized to remove or demote an Owner role."
   }
 }
 ```
