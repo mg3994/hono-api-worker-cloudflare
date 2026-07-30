@@ -1,4 +1,4 @@
-import { IFirebaseRepository } from '../repositories/firebaseRepository';
+import { IFirebaseRepository } from '../domain/firebaseRepository';
 import { IClaimsService } from '../domain/claimsService';
 import { CustomClaims } from '../domain/types';
 

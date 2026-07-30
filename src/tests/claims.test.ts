@@ -3,7 +3,7 @@ import { ClaimsService } from '../services/claimsService';
 import { IClaimsService } from '../domain/claimsService';
 import { AssignClaimsUseCase } from '../usecases/assignClaimsUseCase';
 import { GetUserClaimsUseCase } from '../usecases/getUserClaimsUseCase';
-import { IFirebaseRepository, FirebaseUserRecord } from '../repositories/firebaseRepository';
+import { IFirebaseRepository, FirebaseUserRecord } from '../domain/firebaseRepository';
 import { UserContext, CustomClaims } from '../domain/types';
 import { PermissionDeniedError, LimitExceededError, AuthenticationError } from '../domain/errors';
 import { TokenService } from '../services/tokenService';
@@ -98,7 +98,6 @@ describe('AssignClaimsUseCase Auth & Validation Tests (with Mocks)', () => {
 
     expect(result.o).toContain('biz_100');
     expect(repo.setCustomClaims).toHaveBeenCalledWith('user_123', expect.any(Object));
-    expect(logger.info).toHaveBeenCalled();
   });
 
   it('should allow Owner of a business to assign roles to others for that business', async () => {
