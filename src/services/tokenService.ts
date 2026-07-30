@@ -1,13 +1,15 @@
-import { verifyFirebaseIdToken, FirebaseServiceAccount } from './firebaseUtils';
+import { IFirebaseTokenVerifier } from './firebaseTokenVerifier';
 import { UserContext, CustomClaims, CustomClaimsSchema } from '../domain/types';
 import { AuthenticationError } from '../domain/errors';
 
 export class TokenService {
-  private serviceAccount: FirebaseServiceAccount;
+  private tokenVerifier: IFirebaseTokenVerifier;
+  private projectId: string;
   private superAdminsList: string[];
 
-  constructor(serviceAccount: FirebaseServiceAccount, superAdminsStr: string) {
-    this.serviceAccount = serviceAccount;
+  constructor(tokenVerifier: IFirebaseTokenVerifier, projectId: string, superAdminsStr: string) {
+    this.tokenVerifier = tokenVerifier;
+    this.projectId = projectId;
     this.superAdminsList = superAdminsStr
       ? superAdminsStr.split(',').map((e) => e.trim().toLowerCase())
       : [];
@@ -20,8 +22,7 @@ export class TokenService {
    */
   public async verifyToken(token: string): Promise<UserContext> {
     try {
-      const projectId = this.serviceAccount.project_id;
-      const decoded = await verifyFirebaseIdToken(token, projectId);
+      const decoded = await this.tokenVerifier.verifyToken(token, this.projectId);
 
       // Map raw claims into domain-compliant CustomClaims types
       let claims: CustomClaims = { o: [], m: [], s: [] };

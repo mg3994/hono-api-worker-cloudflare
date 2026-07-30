@@ -5,7 +5,7 @@ import { IFirebaseRepository, FirebaseUserRecord } from '../repositories/firebas
 import { UserContext, CustomClaims } from '../domain/types';
 import { PermissionDeniedError, LimitExceededError, AuthenticationError } from '../domain/errors';
 import { TokenService } from '../services/tokenService';
-import * as firebaseUtils from '../services/firebaseUtils';
+import { IFirebaseTokenVerifier } from '../services/firebaseTokenVerifier';
 
 describe('ClaimsService Unit Tests', () => {
   const claimsService = new ClaimsService();
@@ -243,13 +243,12 @@ describe('AssignClaimsUseCase Auth & Validation Tests', () => {
 });
 
 describe('TokenService Unit Tests', () => {
-  const serviceAccount = {
-    project_id: 'test-project',
-    client_email: 'test@example.com',
-    private_key: 'test-key',
-  };
-
+  const projectId = 'test-project';
   const superAdminsStr = 'admin1@test.com,admin2@test.com';
+
+  const mockTokenVerifier = (): IFirebaseTokenVerifier => ({
+    verifyToken: vi.fn(),
+  });
 
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -264,9 +263,10 @@ describe('TokenService Unit Tests', () => {
       s: [],
     };
 
-    const verifySpy = vi.spyOn(firebaseUtils, 'verifyFirebaseIdToken').mockResolvedValue(mockDecodedToken);
+    const verifier = mockTokenVerifier();
+    const verifySpy = vi.spyOn(verifier, 'verifyToken').mockResolvedValue(mockDecodedToken);
 
-    const tokenService = new TokenService(serviceAccount, superAdminsStr);
+    const tokenService = new TokenService(verifier, projectId, superAdminsStr);
     const context = await tokenService.verifyToken('mock_jwt_token');
 
     expect(verifySpy).toHaveBeenCalledWith('mock_jwt_token', 'test-project');
@@ -282,18 +282,20 @@ describe('TokenService Unit Tests', () => {
       email: 'regular@test.com',
     };
 
-    vi.spyOn(firebaseUtils, 'verifyFirebaseIdToken').mockResolvedValue(mockDecodedToken);
+    const verifier = mockTokenVerifier();
+    vi.spyOn(verifier, 'verifyToken').mockResolvedValue(mockDecodedToken);
 
-    const tokenService = new TokenService(serviceAccount, superAdminsStr);
+    const tokenService = new TokenService(verifier, projectId, superAdminsStr);
     const context = await tokenService.verifyToken('mock_jwt_token');
 
     expect(context.isSuperAdmin).toBe(false);
   });
 
   it('should throw AuthenticationError when token verification fails', async () => {
-    vi.spyOn(firebaseUtils, 'verifyFirebaseIdToken').mockRejectedValue(new Error('Invalid signature'));
+    const verifier = mockTokenVerifier();
+    vi.spyOn(verifier, 'verifyToken').mockRejectedValue(new Error('Invalid signature'));
 
-    const tokenService = new TokenService(serviceAccount, superAdminsStr);
+    const tokenService = new TokenService(verifier, projectId, superAdminsStr);
 
     await expect(tokenService.verifyToken('bad_token')).rejects.toThrow(AuthenticationError);
   });

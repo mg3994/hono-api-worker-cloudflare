@@ -1,5 +1,6 @@
 import { MiddlewareHandler } from 'hono';
 import { TokenService } from '../services/tokenService';
+import { FirebaseTokenVerifier } from '../services/firebaseTokenVerifier';
 import { FirebaseServiceAccount } from '../services/firebaseUtils';
 import { AuthenticationError } from '../domain/errors';
 import { UserContext } from '../domain/types';
@@ -28,16 +29,20 @@ export const authMiddleware = (): MiddlewareHandler<{ Bindings: CloudflareBindin
 
     const token = authHeader.substring(7);
 
-    // Instantiate TokenService and verify
+    // Instantiate token validation components
     const serviceAccountStr = c.env.FIREBASE_SERVICE_ACCOUNT_JSON;
     if (!serviceAccountStr) {
       throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is not configured in environment variables.');
     }
 
     const serviceAccount = JSON.parse(serviceAccountStr) as FirebaseServiceAccount;
+    const projectId = serviceAccount.project_id;
     const superAdminsStr = c.env.SUPER_ADMINS || '';
 
-    const tokenService = new TokenService(serviceAccount, superAdminsStr);
+    // Clean Architecture & Dependency Injection: Inject verifier dependency into TokenService
+    const tokenVerifier = new FirebaseTokenVerifier();
+    const tokenService = new TokenService(tokenVerifier, projectId, superAdminsStr);
+
     const userContext = await tokenService.verifyToken(token);
 
     c.set('user', userContext);
