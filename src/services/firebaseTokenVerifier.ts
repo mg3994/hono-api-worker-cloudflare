@@ -80,7 +80,10 @@ export class FirebaseTokenVerifier implements IFirebaseTokenVerifier {
   }
 
   private b64ToUint8Array(str: string): Uint8Array {
-    const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+    let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+      base64 += '=';
+    }
     const binaryString = atob(base64);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
