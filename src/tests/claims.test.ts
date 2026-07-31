@@ -52,6 +52,7 @@ describe('ClaimsService Unit Tests', () => {
 describe('AssignClaimsUseCase Auth & Validation Tests (with Mocks)', () => {
   const mockFirebaseRepo = (): IFirebaseRepository => ({
     getUserByEmail: vi.fn(),
+    getUserByUid: vi.fn(),
     setCustomClaims: vi.fn(),
   });
 
@@ -282,6 +283,7 @@ describe('AssignClaimsUseCase Auth & Validation Tests (with Mocks)', () => {
 describe('GetUserClaimsUseCase Unit Tests (with Mocks)', () => {
   const mockFirebaseRepo = (): IFirebaseRepository => ({
     getUserByEmail: vi.fn(),
+    getUserByUid: vi.fn(),
     setCustomClaims: vi.fn(),
   });
 

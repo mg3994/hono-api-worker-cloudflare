@@ -7,6 +7,7 @@ export interface IGoogleAuthService {
 
 // Module-level in-memory cache for ultra-fast, local request caching
 let cachedAccessToken: { token: string; expiry: number } | null = null;
+let inFlightTokenPromise: Promise<string> | null = null; // Prevents thundering herd lock
 
 export class GoogleAuthService implements IGoogleAuthService {
   private serviceAccount: FirebaseServiceAccount;
@@ -24,14 +25,12 @@ export class GoogleAuthService implements IGoogleAuthService {
    */
   public static resetCache(): void {
     cachedAccessToken = null;
+    inFlightTokenPromise = null;
   }
 
   /**
    * Decoupled Google OAuth2 access token generation for Google API scopes.
-   * Utilizes a highly efficient, multi-level caching strategy:
-   * 1. Check in-memory module-level cache (sub-millisecond latency local to instance).
-   * 2. Check Cloudflare KV namespace (globally distributed edge key-value storage).
-   * 3. Fallback to fresh JWT assertion generation & API call, then populate KV and memory.
+   * Utilizes a highly efficient, multi-level caching strategy and prevents thundering herd.
    */
   public async getAccessToken(): Promise<string> {
     const nowMs = Date.now();
@@ -41,29 +40,42 @@ export class GoogleAuthService implements IGoogleAuthService {
       return cachedAccessToken.token;
     }
 
-    // 2. Fall back to Cloudflare KV cache if available
+    // 2. Prevent concurrent duplicate fetches (Thundering Herd lock)
+    if (inFlightTokenPromise) {
+      return inFlightTokenPromise;
+    }
+
+    inFlightTokenPromise = this.fetchAndCacheToken(nowMs).finally(() => {
+      inFlightTokenPromise = null;
+    });
+
+    return inFlightTokenPromise;
+  }
+
+  private async fetchAndCacheToken(nowMs: number): Promise<string> {
     const kvKey = 'google_oauth_access_token';
+
+    // Check Cloudflare KV cache if available
     if (this.googleOauthTokenKv) {
       try {
         const cachedFromKv = await this.googleOauthTokenKv.get<{ token: string; expiry: number }>(kvKey, 'json');
         if (cachedFromKv && cachedFromKv.expiry > nowMs + 300 * 1000) {
-          // Populate the in-memory cache for subsequent fast retrievals on this instance
           cachedAccessToken = cachedFromKv;
           return cachedFromKv.token;
         }
       } catch (err) {
-        // Log or silently fallback to generating a new token if KV fails
         console.warn('GoogleAuthService: Failed to retrieve token from KV cache:', err);
       }
     }
 
-    // 3. Cache Miss: Generate a fresh OAuth2 access token from Google
+    // Cache Miss: Generate a fresh OAuth2 access token from Google
     const iat = Math.floor(nowMs / 1000);
     const exp = iat + 3600;
 
     const payload = {
       iss: this.serviceAccount.client_email,
-      scope: 'https://www.googleapis.com/auth/identitytoolkit',
+      // Identity toolkit scope + general Cloud Platform scope for maximum API coverage
+      scope: 'https://www.googleapis.com/auth/identitytoolkit https://www.googleapis.com/auth/cloud-platform',
       aud: 'https://oauth2.googleapis.com/token',
       exp,
       iat,
@@ -81,6 +93,7 @@ export class GoogleAuthService implements IGoogleAuthService {
         grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
         assertion: jwt,
       }),
+      signal: AbortSignal.timeout(10000), // 10s timeout safeguard
     });
 
     if (!response.ok) {
@@ -103,7 +116,6 @@ export class GoogleAuthService implements IGoogleAuthService {
     // Store in globally distributed Cloudflare KV Namespace with dynamic expires_in TTL (adjusted with buffer)
     if (this.googleOauthTokenKv) {
       try {
-        // Subtraction of 300 seconds (5 minutes) ensures we never return an expired token close to the threshold
         const bufferTtl = Math.max(60, expiresInSeconds - 300);
         await this.googleOauthTokenKv.put(
           kvKey,

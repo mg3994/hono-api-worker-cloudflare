@@ -60,8 +60,8 @@ export function createContainer(env: CloudflareBindings): AppContainer {
   const tokenVerifier = new FirebaseTokenVerifier(env.FIREBASE_PUBLIC_KEY_KV, logger);
   const tokenService = new TokenService(tokenVerifier, projectId, superAdminsStr, logger);
 
-  // Repositories (injecting googleAuthService dependency)
-  const firebaseRepository = new FirebaseRepository(googleAuthService);
+  // Repositories (injecting googleAuthService and serviceAccount)
+  const firebaseRepository = new FirebaseRepository(googleAuthService, serviceAccount);
 
   // UseCases (injecting dependencies and config)
   const assignClaimsUseCase = new AssignClaimsUseCase(firebaseRepository, claimsService, logger, maxLimit);
