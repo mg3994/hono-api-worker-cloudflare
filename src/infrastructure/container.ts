@@ -1,4 +1,5 @@
-import { FirebaseRepository, IFirebaseRepository } from '../repositories/firebaseRepository';
+import { FirebaseRepository } from '../repositories/firebaseRepository';
+import { IFirebaseRepository } from '../domain/firebaseRepository';
 import { ClaimsService } from '../services/claimsService';
 import { IClaimsService } from '../domain/claimsService';
 import { GoogleAuthService } from '../services/googleAuthService';

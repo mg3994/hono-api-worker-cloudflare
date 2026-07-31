@@ -1,4 +1,3 @@
-import { IGoogleAuthService } from './googleAuthService';
 import { IJwtSigner } from '../domain/jwtSigner';
 import { FirebaseServiceAccount } from '../domain/types';
 
@@ -18,6 +17,13 @@ export class GoogleAuthService implements IGoogleAuthService {
     this.serviceAccount = serviceAccount;
     this.jwtSigner = jwtSigner;
     this.googleOauthTokenKv = googleOauthTokenKv;
+  }
+
+  /**
+   * Resets the in-memory Google OAuth token cache (primarily useful during unit test teardowns).
+   */
+  public static resetCache(): void {
+    cachedAccessToken = null;
   }
 
   /**
