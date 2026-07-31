@@ -1,3 +1,4 @@
+import { IGoogleAuthService } from './googleAuthService';
 import { IJwtSigner } from '../domain/jwtSigner';
 import { FirebaseServiceAccount } from '../domain/types';
 
@@ -11,12 +12,12 @@ let cachedAccessToken: { token: string; expiry: number } | null = null;
 export class GoogleAuthService implements IGoogleAuthService {
   private serviceAccount: FirebaseServiceAccount;
   private jwtSigner: IJwtSigner;
-  private kvNamespace?: KVNamespace;
+  private googleOauthTokenKv?: KVNamespace;
 
-  constructor(serviceAccount: FirebaseServiceAccount, jwtSigner: IJwtSigner, kvNamespace?: KVNamespace) {
+  constructor(serviceAccount: FirebaseServiceAccount, jwtSigner: IJwtSigner, googleOauthTokenKv?: KVNamespace) {
     this.serviceAccount = serviceAccount;
     this.jwtSigner = jwtSigner;
-    this.kvNamespace = kvNamespace;
+    this.googleOauthTokenKv = googleOauthTokenKv;
   }
 
   /**
@@ -36,9 +37,9 @@ export class GoogleAuthService implements IGoogleAuthService {
 
     // 2. Fall back to Cloudflare KV cache if available
     const kvKey = 'google_oauth_access_token';
-    if (this.kvNamespace) {
+    if (this.googleOauthTokenKv) {
       try {
-        const cachedFromKv = await this.kvNamespace.get<{ token: string; expiry: number }>(kvKey, 'json');
+        const cachedFromKv = await this.googleOauthTokenKv.get<{ token: string; expiry: number }>(kvKey, 'json');
         if (cachedFromKv && cachedFromKv.expiry > nowMs + 300 * 1000) {
           // Populate the in-memory cache for subsequent fast retrievals on this instance
           cachedAccessToken = cachedFromKv;
@@ -94,11 +95,11 @@ export class GoogleAuthService implements IGoogleAuthService {
     };
 
     // Store in globally distributed Cloudflare KV Namespace with dynamic expires_in TTL (adjusted with buffer)
-    if (this.kvNamespace) {
+    if (this.googleOauthTokenKv) {
       try {
         // Subtraction of 300 seconds (5 minutes) ensures we never return an expired token close to the threshold
         const bufferTtl = Math.max(60, expiresInSeconds - 300);
-        await this.kvNamespace.put(
+        await this.googleOauthTokenKv.put(
           kvKey,
           JSON.stringify(cachedAccessToken),
           { expirationTtl: bufferTtl }
