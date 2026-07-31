@@ -19,7 +19,10 @@ export class FirebaseRepository implements IFirebaseRepository {
     };
   }
 
-  async getUserByEmail(email: string): Promise<FirebaseUserRecord | null> {
+  /**
+   * Unified DRY helper to perform accounts:lookup REST API calls to the Identity Toolkit.
+   */
+  private async lookupUser(criteriaPayload: Record<string, any>): Promise<FirebaseUserRecord | null> {
     const headers = await this.getHeaders();
     const url = 'https://identitytoolkit.googleapis.com/v1/accounts:lookup';
 
@@ -28,14 +31,14 @@ export class FirebaseRepository implements IFirebaseRepository {
       headers,
       body: JSON.stringify({
         targetProjectId: this.projectId,
-        email: [email],
+        ...criteriaPayload,
       }),
       signal: AbortSignal.timeout(5000), // 5s timeout safeguard
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`Firebase accounts:lookup by email failed: ${errText}`);
+      throw new Error(`Firebase accounts:lookup failed: ${errText}`);
     }
 
     const data = (await response.json()) as { users?: FirebaseUserRecord[] };
@@ -46,34 +49,24 @@ export class FirebaseRepository implements IFirebaseRepository {
     return data.users[0];
   }
 
-  async getUserByUid(uid: string): Promise<FirebaseUserRecord | null> {
-    const headers = await this.getHeaders();
-    const url = 'https://identitytoolkit.googleapis.com/v1/accounts:lookup';
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        targetProjectId: this.projectId,
-        localId: [uid],
-      }),
-      signal: AbortSignal.timeout(5000), // 5s timeout safeguard
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Firebase accounts:lookup by UID failed: ${errText}`);
-    }
-
-    const data = (await response.json()) as { users?: FirebaseUserRecord[] };
-    if (!data.users || data.users.length === 0) {
-      return null;
-    }
-
-    return data.users[0];
+  /**
+   * Look up a user account by their email address.
+   */
+  public async getUserByEmail(email: string): Promise<FirebaseUserRecord | null> {
+    return this.lookupUser({ email: [email] });
   }
 
-  async setCustomClaims(uid: string, claims: CustomClaims): Promise<void> {
+  /**
+   * Look up a user account by their unique UID (localId).
+   */
+  public async getUserByUid(uid: string): Promise<FirebaseUserRecord | null> {
+    return this.lookupUser({ localId: [uid] });
+  }
+
+  /**
+   * Write custom claims metadata (o, m, s) to the target user account.
+   */
+  public async setCustomClaims(uid: string, claims: CustomClaims): Promise<void> {
     const headers = await this.getHeaders();
     const url = 'https://identitytoolkit.googleapis.com/v1/accounts:setAccountInfo';
 
