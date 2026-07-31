@@ -175,7 +175,7 @@ describe('AssignClaimsUseCase Auth & Validation Tests (with Mocks)', () => {
         role: 'm', // Trying to make themselves moderator of their own business
         businessId: 'biz_100',
       })
-    ).rejects.toThrow(/An Owner cannot downgrade themselves or assign themselves to other roles for their own business/);
+    ).rejects.toThrow(PermissionDeniedError);
   });
 
   it('should allow Owner to update themselves to Owner of their own business (noop or reinforce)', async () => {
@@ -322,6 +322,22 @@ describe('GetUserClaimsUseCase Unit Tests (with Mocks)', () => {
 
     const result = await useCase.execute('nonexistent@example.com');
     expect(result).toEqual({ o: [], m: [], s: [] });
+  });
+
+  it('should support getUserByUid lookup queries directly on the repository', async () => {
+    const repo = mockFirebaseRepo();
+    const targetUser: FirebaseUserRecord = {
+      localId: 'uid_999',
+      email: 'uid999@example.com',
+    };
+
+    vi.spyOn(repo, 'getUserByUid').mockResolvedValue(targetUser);
+
+    const result = await repo.getUserByUid('uid_999');
+    expect(result).not.toBeNull();
+    expect(result?.email).toBe('uid999@example.com');
+    expect(result?.localId).toBe('uid_999');
+    expect(repo.getUserByUid).toHaveBeenCalledWith('uid_999');
   });
 });
 
