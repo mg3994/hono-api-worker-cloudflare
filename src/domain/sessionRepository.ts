@@ -21,4 +21,9 @@ export interface ISessionRepository {
    * Fetches the device sessions associated with a specific user ID.
    */
   getSessionsByUid(uid: string): Promise<DeviceSessionRecord[]>;
+
+  /**
+   * Retrieves all active remote FCM device tokens associated with a given Firebase UID.
+   */
+  getFCMTokensByUid(uid: string): Promise<string[]>;
 }

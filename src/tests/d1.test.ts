@@ -21,6 +21,16 @@ function createMockD1() {
             },
             all: async () => {
               statements.push({ sql, params });
+
+              if (sql.includes('device_token as deviceToken')) {
+                return {
+                  success: true,
+                  results: [
+                    { deviceToken: 'fcm_token_999' }
+                  ]
+                };
+              }
+
               return {
                 success: true,
                 results: [
@@ -131,5 +141,17 @@ describe('D1 CompanyRepository & SessionRepository Tests', () => {
     expect(mockDb.statements.length).toBe(1);
     expect(mockDb.statements[0].sql).toContain('DELETE FROM user_device_sessions WHERE browser_client_id = ?');
     expect(mockDb.statements[0].params).toEqual(['browser_1']);
+  });
+
+  it('should fetch FCM device tokens associated with a given Firebase UID', async () => {
+    const mockDb = createMockD1();
+    const repo = new SessionRepository(mockDb);
+
+    const result = await repo.getFCMTokensByUid('user_123');
+
+    expect(result).toEqual(['fcm_token_999']);
+    expect(mockDb.statements.length).toBe(1);
+    expect(mockDb.statements[0].sql).toContain('SELECT device_token as deviceToken FROM user_device_sessions WHERE uid = ?');
+    expect(mockDb.statements[0].params).toEqual(['user_123']);
   });
 });

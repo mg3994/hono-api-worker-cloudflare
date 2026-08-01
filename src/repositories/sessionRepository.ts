@@ -56,4 +56,14 @@ export class SessionRepository implements ISessionRepository {
       updatedAt: row.updatedAt,
     }));
   }
+
+  /**
+   * Retrieves all active remote FCM device tokens associated with a given Firebase UID.
+   */
+  public async getFCMTokensByUid(uid: string): Promise<string[]> {
+    const query = 'SELECT device_token as deviceToken FROM user_device_sessions WHERE uid = ?';
+    const result = await this.db.prepare(query).bind(uid).all<{ deviceToken: string }>();
+
+    return (result.results || []).map((row) => row.deviceToken);
+  }
 }
