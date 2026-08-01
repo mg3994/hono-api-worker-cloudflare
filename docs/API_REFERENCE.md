@@ -199,7 +199,118 @@ Returned when a standard Owner attempts to demote or remove the Owner role (`o`)
 
 ---
 
-### 3. `GET /api/payments`
+### 3. `GET /api/business/:id/users`
+Retrieves all users, their emails, and active assigned roles (`o` for owner, `m` for moderator, `s` for staff) associated with the specific business ID.
+
+#### Headers
+- `Authorization: Bearer <Firebase_ID_Token>` (Required)
+
+#### Authorization Rules
+- The caller must be a Super Admin OR hold an active role (`o`, `m`, `s`) inside the specified `businessId` to fetch its staff list.
+
+#### Successful Response (`200 OK`)
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "uid": "target_user_uid_1",
+      "email": "owner@biz.com",
+      "businessId": "118774185466060931",
+      "role": "o",
+      "updatedAt": 1711204899201
+    },
+    {
+      "uid": "target_user_uid_2",
+      "email": "moderator@biz.com",
+      "businessId": "118774185466060931",
+      "role": "m",
+      "updatedAt": 1711204910340
+    }
+  ]
+}
+```
+
+---
+
+### 4. `POST /api/devices/sync`
+Synchronizes current active FCM registration tokens and client browser IDs with the back-end relational D1 database. Supports tracking guest sessions and seamlessly merging browser sessions upon Firebase user logins.
+
+#### Request Payload Schema
+```json
+{
+  "action": "SYNC_DEVICE", // Must be either "SYNC_DEVICE" or "LOGOUT_DEVICE"
+  "clientId": "client-36zfd9-1711204899", // browser profile unique identifier
+  "idToken": "Firebase_ID_Token_Here", // optional (can pass "guest_session" or oauth id token)
+  "deviceToken": "fcm_device_registration_token", // required for sync
+  "clientName": "Chrome (Mobile)" // optional client platform name description
+}
+```
+
+#### Successful Sync Response (`200 OK`)
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Device session synced successfully.",
+    "session": {
+      "browserClientId": "client-36zfd9-1711204899",
+      "uid": "authenticated_uid_or_guest",
+      "deviceToken": "fcm_device_registration_token",
+      "clientName": "Chrome (Mobile)",
+      "updatedAt": 1711204911220
+    }
+  }
+}
+```
+
+#### Successful Logout Response (`200 OK`)
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Successfully logged out browser device session: client-36zfd9-1711204899"
+  }
+}
+```
+
+---
+
+### 5. `POST /api/notifications/send`
+Dispatches an FCM push notification securely through Google's HTTP/v1 API. It automatically integrates webpush configurations to support deep-linking click focus states.
+
+#### Headers
+- `Authorization: Bearer <Firebase_ID_Token>` (Required)
+
+#### Request Payload Schema
+```json
+{
+  "targetUid": "recipient_firebase_uid",
+  "businessId": "118774185466060931", // optional context business ID for Owner/Manager authorization
+  "title": "New Order Placed",
+  "body": "A customer placed an order at Shop #123.",
+  "imageUrl": "https://example.com/logo.png", // optional
+  "deepLinkUrl": "/orders/detail/abc" // optional navigation target
+}
+```
+
+#### Authorization Rules
+- The caller must be a Super Admin, OR hold an Owner (`o`) or Manager/Moderator (`m`) custom claim matching the provided `businessId`.
+
+#### Successful Response (`200 OK`)
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Successfully executed push notification delivery sequence. Sent to 2 active devices.",
+    "failures": []
+  }
+}
+```
+
+---
+
+### 6. `GET /api/payments`
 Optional authentication endpoint returning customized payment tiers and features.
 
 #### Headers
