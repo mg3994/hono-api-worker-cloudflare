@@ -17,5 +17,12 @@
       "binding": "FIREBASE_PUBLIC_KEY_KV",
       "id": "apiworker_firebase_public_key_kv"
     }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "apiworker_db",
+      "database_id": "apiworker_db_id"
+    }
   ]
 }

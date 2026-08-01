@@ -1,6 +1,7 @@
 import { Context } from 'hono';
 import { UserContext, StandardResponse } from '../domain/types';
-import { AuthenticationError } from '../domain/errors';
+import { AuthenticationError, PermissionDeniedError } from '../domain/errors';
+import { DeviceSessionRecord } from '../domain/sessionRepository';
 
 export class ApiControllers {
   /**
@@ -54,6 +55,109 @@ export class ApiControllers {
         updatedClaims,
       },
     });
+  }
+
+  /**
+   * Controller for GET /api/business/:id/users
+   * Retrieves all users (emails, roles) mapped to a specific business ID from D1.
+   */
+  public static async getBusinessUsers(c: Context) {
+    const user = c.get('user') as UserContext | null;
+    if (!user) {
+      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
+    }
+
+    const businessId = c.req.param('id');
+    if (!businessId) {
+      throw new Error('Business ID parameter is missing.');
+    }
+
+    // Security Gate: Super Admin or Associated User
+    const isSuperAdmin = user.isSuperAdmin;
+    const isAssociated =
+      user.claims.o?.includes(businessId) ||
+      user.claims.m?.includes(businessId) ||
+      user.claims.s?.includes(businessId);
+
+    if (!isSuperAdmin && !isAssociated) {
+      throw new PermissionDeniedError('Permission denied: You must be associated with this business to view its users.');
+    }
+
+    const container = c.get('container');
+    const usersList = await container.getBusinessUsersUseCase.execute(businessId);
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: usersList,
+    });
+  }
+
+  /**
+   * Controller for POST /api/devices/sync
+   * Unified session, browser, and FCM token tracker.
+   */
+  public static async syncDeviceSession(c: Context) {
+    const payload = await c.req.json<{
+      action: 'SYNC_DEVICE' | 'LOGOUT_DEVICE';
+      clientId: string;
+      idToken?: string;
+      deviceToken?: string;
+      clientName?: string;
+    }>();
+
+    const container = c.get('container');
+    const sessionRepo = container.sessionRepository;
+
+    if (payload.action === 'LOGOUT_DEVICE') {
+      if (!payload.clientId) {
+        throw new Error('Missing clientId for device logout.');
+      }
+      await sessionRepo.logoutDevice(payload.clientId);
+
+      return c.json<StandardResponse>({
+        success: true,
+        data: { message: `Successfully logged out browser device session: ${payload.clientId}` },
+      });
+    }
+
+    if (payload.action === 'SYNC_DEVICE') {
+      const { clientId, idToken, deviceToken, clientName } = payload;
+      if (!clientId || !deviceToken) {
+        throw new Error('Missing clientId or deviceToken for device sync.');
+      }
+
+      // Check if this is an authenticated user session vs a guest session
+      let uid = 'guest';
+      if (idToken && idToken !== 'guest_session') {
+        try {
+          // Verify ID token locally on the edge!
+          const userContext = await container.tokenService.verifyToken(idToken);
+          uid = userContext.uid;
+        } catch (err: any) {
+          // Graceful fallback to guest or throw warning depending on client auth requirements
+        }
+      }
+
+      const sessionRecord: DeviceSessionRecord = {
+        browserClientId: clientId,
+        uid,
+        deviceToken,
+        clientName: clientName || 'Unknown Web Client',
+        updatedAt: Date.now(),
+      };
+
+      await sessionRepo.syncDeviceSession(sessionRecord);
+
+      return c.json<StandardResponse>({
+        success: true,
+        data: {
+          message: 'Device session synced successfully.',
+          session: sessionRecord,
+        },
+      });
+    }
+
+    throw new Error(`Unsupported sync action payload: ${(payload as any).action}`);
   }
 
   /**

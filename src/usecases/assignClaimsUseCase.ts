@@ -1,5 +1,6 @@
 import { IFirebaseRepository } from '../domain/firebaseRepository';
 import { IClaimsService } from '../domain/claimsService';
+import { ICompanyRepository } from '../domain/companyRepository';
 import { ILogger } from '../domain/logger';
 import { CustomClaims, AssignClaimRequest, UserContext } from '../domain/types';
 import { PermissionDeniedError, UserNotFoundError } from '../domain/errors';
@@ -7,18 +8,21 @@ import { PermissionDeniedError, UserNotFoundError } from '../domain/errors';
 export class AssignClaimsUseCase {
   private firebaseRepo: IFirebaseRepository;
   private claimsService: IClaimsService;
-  private logger: ILogger;
+  private logger?: ILogger;
+  private companyRepo?: ICompanyRepository;
   private maxLimit: number;
 
   constructor(
     firebaseRepo: IFirebaseRepository,
     claimsService: IClaimsService,
-    logger: ILogger,
+    logger?: ILogger,
+    companyRepo?: ICompanyRepository,
     maxLimit: number = 20
   ) {
     this.firebaseRepo = firebaseRepo;
     this.claimsService = claimsService;
     this.logger = logger;
+    this.companyRepo = companyRepo;
     this.maxLimit = maxLimit;
   }
 
@@ -80,8 +84,17 @@ export class AssignClaimsUseCase {
     // Save claims to Firebase auth
     await this.firebaseRepo.setCustomClaims(targetUser.localId, updatedClaims);
 
+    // Synchronize to the local D1 relational database for advanced querying/reporting if repo is supplied
+    if (this.companyRepo) {
+      try {
+        await this.companyRepo.syncClaimsToD1(targetUser.localId, targetUser.email, updatedClaims);
+      } catch (err: any) {
+        this.logger?.warn(`D1 sync failed during custom claims update: ${err.message}`);
+      }
+    }
+
     // Descriptive logging for upgrades/demotions/assignments via injected audit logger
-    this.logger.info(
+    this.logger?.info(
       `AUDIT LOG: Caller <${caller.email}> assigned Role <${role}> on Business ID <${businessId}> for Target User <${targetEmail}>. Previous Roles Removed: [${removedRoles.join(', ')}].`
     );
 

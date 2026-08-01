@@ -37,6 +37,18 @@ api.post(
 );
 
 /**
+ * GET /api/business/:id/users
+ * Retrieves all users (emails, roles) mapped to a specific business ID from D1.
+ */
+api.get('/business/:id/users', ApiControllers.getBusinessUsers);
+
+/**
+ * POST /api/devices/sync
+ * Unified session, browser, and FCM token tracker.
+ */
+api.post('/devices/sync', ApiControllers.syncDeviceSession);
+
+/**
  * GET /api/payments
  * Sample payments endpoint where Authorization is a plus but not compulsory.
  */
