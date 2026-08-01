@@ -74,6 +74,7 @@ export class MessagingService implements IMessagingService {
   /**
    * Sends push notifications to a list of tokens. If there is one token,
    * it sends to that single device, otherwise sends to all remote tokens in the list.
+   * Chunk limit is set to 499 to be safe and optimize edge performance concurrently.
    */
   public async sendNotificationToTokens(
     tokens: string[],
@@ -97,14 +98,24 @@ export class MessagingService implements IMessagingService {
       return { successCount, failures };
     }
 
-    // Else send notification to all those remote device tokens
-    for (const token of tokens) {
-      try {
-        await this.sendNotificationToToken(token, payload);
-        successCount++;
-      } catch (err: any) {
-        failures.push(`Token ${token.substring(0, 10)}... failed: ${err.message}`);
-      }
+    const chunkSize = 499;
+
+    // Chunk the tokens array into blocks of size 499
+    for (let i = 0; i < tokens.length; i += chunkSize) {
+      const chunk = tokens.slice(i, i + chunkSize);
+
+      // Execute push dispatches in parallel for the current chunk utilizing Promise.allSettled
+      const promises = chunk.map((token) =>
+        this.sendNotificationToToken(token, payload)
+          .then(() => {
+            successCount++;
+          })
+          .catch((err: any) => {
+            failures.push(`Token ${token.substring(0, 10)}... failed: ${err.message}`);
+          })
+      );
+
+      await Promise.allSettled(promises);
     }
 
     return { successCount, failures };
