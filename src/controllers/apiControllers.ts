@@ -1,5 +1,5 @@
 import { Context } from 'hono';
-import { UserContext, StandardResponse } from '../domain/types';
+import { UserContext, StandardResponse, DeviceSyncRequest, SendNotificationRequest } from '../domain/types';
 import { AuthenticationError, PermissionDeniedError } from '../domain/errors';
 import { DeviceSessionRecord } from '../domain/sessionRepository';
 
@@ -97,21 +97,12 @@ export class ApiControllers {
    * Unified session, browser, and FCM token tracker.
    */
   public static async syncDeviceSession(c: Context) {
-    const payload = await c.req.json<{
-      action: 'SYNC_DEVICE' | 'LOGOUT_DEVICE';
-      clientId: string;
-      idToken?: string;
-      deviceToken?: string;
-      clientName?: string;
-    }>();
+    const payload = c.req.valid('json') as DeviceSyncRequest;
 
     const container = c.get('container');
     const sessionRepo = container.sessionRepository;
 
     if (payload.action === 'LOGOUT_DEVICE') {
-      if (!payload.clientId) {
-        throw new Error('Missing clientId for device logout.');
-      }
       await sessionRepo.logoutDevice(payload.clientId);
 
       return c.json<StandardResponse>({
@@ -122,8 +113,8 @@ export class ApiControllers {
 
     if (payload.action === 'SYNC_DEVICE') {
       const { clientId, idToken, deviceToken, clientName } = payload;
-      if (!clientId || !deviceToken) {
-        throw new Error('Missing clientId or deviceToken for device sync.');
+      if (!deviceToken) {
+        throw new Error('Missing deviceToken for device sync.');
       }
 
       // Check if this is an authenticated user session vs a guest session
@@ -171,20 +162,8 @@ export class ApiControllers {
       throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
     }
 
-    const payload = await c.req.json<{
-      targetUid: string;
-      businessId?: string; // Optional context business ID for Owner/Manager authorization
-      title: string;
-      body: string;
-      imageUrl?: string;
-      deepLinkUrl?: string;
-      customData?: Record<string, string>;
-    }>();
-
+    const payload = c.req.valid('json') as SendNotificationRequest;
     const { targetUid, businessId, title, body, imageUrl, deepLinkUrl, customData } = payload;
-    if (!targetUid || !title || !body) {
-      throw new Error('Missing targetUid, title, or body parameters.');
-    }
 
     // Access Check Strategy
     const isSuperAdmin = user.isSuperAdmin;
@@ -193,7 +172,6 @@ export class ApiControllers {
     if (businessId) {
       const isOwner = user.claims?.o?.includes(businessId) || false;
       const isManager = user.claims?.m?.includes(businessId) || false;
-      // Future: add check for delivery partners here
       isAuthorizedBusinessSender = isOwner || isManager;
     }
 

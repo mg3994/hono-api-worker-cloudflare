@@ -16,6 +16,34 @@ export const AssignClaimRequestSchema = z.object({
 
 export type AssignClaimRequest = z.infer<typeof AssignClaimRequestSchema>;
 
+export const DeviceSyncRequestSchema = z.object({
+  action: z.enum(['SYNC_DEVICE', 'LOGOUT_DEVICE'], { message: "Action must be 'SYNC_DEVICE' or 'LOGOUT_DEVICE'" }),
+  clientId: z.string().min(1, { message: 'clientId cannot be empty' }),
+  idToken: z.string().optional(),
+  deviceToken: z.string().optional(),
+  clientName: z.string().optional(),
+});
+
+export type DeviceSyncRequest = z.infer<typeof DeviceSyncRequestSchema>;
+
+export const SendNotificationRequestSchema = z.object({
+  targetUid: z.string().min(1, { message: 'targetUid cannot be empty' }),
+  businessId: z.string().optional(),
+  title: z.string().min(1, { message: 'title cannot be empty' }),
+  body: z.string().min(1, { message: 'body cannot be empty' }),
+  imageUrl: z.string().optional(),
+  deepLinkUrl: z.string().optional(),
+  customData: z.record(z.string()).optional(),
+});
+
+export type SendNotificationRequest = z.infer<typeof SendNotificationRequestSchema>;
+
+export interface FirebaseServiceAccount {
+  project_id: string;
+  private_key: string;
+  client_email: string;
+}
+
 export interface UserContext {
   uid: string;
   email: string;

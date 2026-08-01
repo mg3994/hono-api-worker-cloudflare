@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { sValidator } from '@hono/standard-validator';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { containerMiddleware } from '../middlewares/containerMiddleware';
-import { AssignClaimRequestSchema } from '../domain/types';
+import { AssignClaimRequestSchema, DeviceSyncRequestSchema, SendNotificationRequestSchema } from '../domain/types';
 import { ValidationError } from '../domain/errors';
 import { ApiControllers } from '../controllers/apiControllers';
 
@@ -29,7 +29,6 @@ api.post(
   '/claims/assign',
   sValidator('json', AssignClaimRequestSchema, (result, c) => {
     if (!result.success) {
-      // Direct ValidationError is caught by our global error handler to return structured error envelopes
       throw new ValidationError('Validation failed', result.issues);
     }
   }),
@@ -46,13 +45,29 @@ api.get('/business/:id/users', ApiControllers.getBusinessUsers);
  * POST /api/devices/sync
  * Unified session, browser, and FCM token tracker.
  */
-api.post('/devices/sync', ApiControllers.syncDeviceSession);
+api.post(
+  '/devices/sync',
+  sValidator('json', DeviceSyncRequestSchema, (result, c) => {
+    if (!result.success) {
+      throw new ValidationError('Validation failed', result.issues);
+    }
+  }),
+  ApiControllers.syncDeviceSession
+);
 
 /**
  * POST /api/notifications/send
  * Exposes push notification delivery to target uids, restricted to Super Admins, Owners, or Managers.
  */
-api.post('/notifications/send', ApiControllers.sendPushNotification);
+api.post(
+  '/notifications/send',
+  sValidator('json', SendNotificationRequestSchema, (result, c) => {
+    if (!result.success) {
+      throw new ValidationError('Validation failed', result.issues);
+    }
+  }),
+  ApiControllers.sendPushNotification
+);
 
 /**
  * GET /api/payments
