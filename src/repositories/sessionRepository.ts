@@ -66,4 +66,14 @@ export class SessionRepository implements ISessionRepository {
 
     return (result.results || []).map((row) => row.deviceToken);
   }
+
+  /**
+   * Retrieves all unique active FCM device tokens registered in the system.
+   */
+  public async getAllFCMTokens(): Promise<string[]> {
+    const query = 'SELECT DISTINCT device_token as deviceToken FROM user_device_sessions';
+    const result = await this.db.prepare(query).all<{ deviceToken: string }>();
+
+    return (result.results || []).map((row) => row.deviceToken);
+  }
 }

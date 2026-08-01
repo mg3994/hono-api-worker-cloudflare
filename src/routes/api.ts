@@ -49,6 +49,12 @@ api.get('/business/:id/users', ApiControllers.getBusinessUsers);
 api.post('/devices/sync', ApiControllers.syncDeviceSession);
 
 /**
+ * POST /api/notifications/send
+ * Exposes push notification delivery to target uids, restricted to Super Admins, Owners, or Managers.
+ */
+api.post('/notifications/send', ApiControllers.sendPushNotification);
+
+/**
  * GET /api/payments
  * Sample payments endpoint where Authorization is a plus but not compulsory.
  */

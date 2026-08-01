@@ -26,4 +26,9 @@ export interface ISessionRepository {
    * Retrieves all active remote FCM device tokens associated with a given Firebase UID.
    */
   getFCMTokensByUid(uid: string): Promise<string[]>;
+
+  /**
+   * Retrieves all unique active FCM device tokens registered in the system.
+   */
+  getAllFCMTokens(): Promise<string[]>;
 }

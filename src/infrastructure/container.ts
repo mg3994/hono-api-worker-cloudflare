@@ -19,12 +19,17 @@ import { SessionRepository } from '../repositories/sessionRepository';
 import { ISessionRepository } from '../domain/sessionRepository';
 import { GetBusinessUsersUseCase } from '../usecases/getBusinessUsersUseCase';
 
+// Messaging Imports
+import { IMessagingService } from '../domain/messagingService';
+import { MessagingService } from '../services/messagingService';
+
 export interface AppContainer {
   firebaseRepository: IFirebaseRepository;
   claimsService: IClaimsService;
   tokenService: ITokenService;
   companyRepository: ICompanyRepository;
   sessionRepository: ISessionRepository;
+  messagingService: IMessagingService;
   assignClaimsUseCase: AssignClaimsUseCase;
   getUserClaimsUseCase: GetUserClaimsUseCase;
   getBusinessUsersUseCase: GetBusinessUsersUseCase;
@@ -102,6 +107,9 @@ export function createContainer(env: CloudflareBindings): AppContainer {
   const companyRepository = new CompanyRepository(d1Db);
   const sessionRepository = new SessionRepository(d1Db);
 
+  // Messaging Service with OAuth and Token dependency injected
+  const messagingService = new MessagingService(googleAuthService, sessionRepository, projectId);
+
   // Repositories (injecting googleAuthService and serviceAccount)
   const firebaseRepository = new FirebaseRepository(googleAuthService, serviceAccount);
 
@@ -116,6 +124,7 @@ export function createContainer(env: CloudflareBindings): AppContainer {
     tokenService,
     companyRepository,
     sessionRepository,
+    messagingService,
     assignClaimsUseCase,
     getUserClaimsUseCase,
     getBusinessUsersUseCase,

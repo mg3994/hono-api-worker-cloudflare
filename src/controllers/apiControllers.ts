@@ -161,6 +161,67 @@ export class ApiControllers {
   }
 
   /**
+   * Controller for POST /api/notifications/send
+   * Exposes push notification delivery.
+   * Access Controls: Super Admins, OR Owners ('o') / Managers ('m') of the provided business ID.
+   */
+  public static async sendPushNotification(c: Context) {
+    const user = c.get('user') as UserContext | null;
+    if (!user) {
+      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
+    }
+
+    const payload = await c.req.json<{
+      targetUid: string;
+      businessId?: string; // Optional context business ID for Owner/Manager authorization
+      title: string;
+      body: string;
+      imageUrl?: string;
+      deepLinkUrl?: string;
+      customData?: Record<string, string>;
+    }>();
+
+    const { targetUid, businessId, title, body, imageUrl, deepLinkUrl, customData } = payload;
+    if (!targetUid || !title || !body) {
+      throw new Error('Missing targetUid, title, or body parameters.');
+    }
+
+    // Access Check Strategy
+    const isSuperAdmin = user.isSuperAdmin;
+    let isAuthorizedBusinessSender = false;
+
+    if (businessId) {
+      const isOwner = user.claims?.o?.includes(businessId) || false;
+      const isManager = user.claims?.m?.includes(businessId) || false;
+      // Future: add check for delivery partners here
+      isAuthorizedBusinessSender = isOwner || isManager;
+    }
+
+    if (!isSuperAdmin && !isAuthorizedBusinessSender) {
+      throw new PermissionDeniedError(
+        'Permission denied: Only Super Admins, Business Owners, or Managers are authorized to dispatch push notifications.'
+      );
+    }
+
+    const container = c.get('container');
+    const result = await container.messagingService.sendNotificationToUser(targetUid, {
+      title,
+      body,
+      imageUrl,
+      deepLinkUrl,
+      customData,
+    });
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: {
+        message: `Successfully executed push notification delivery sequence. Sent to ${result.successCount} active devices.`,
+        failures: result.failures,
+      },
+    });
+  }
+
+  /**
    * Controller for GET /api/payments
    */
   public static async getPayments(c: Context) {
