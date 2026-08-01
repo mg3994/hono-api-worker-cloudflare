@@ -3,66 +3,7 @@ import { CompanyRepository } from '../repositories/companyRepository';
 import { SessionRepository } from '../repositories/sessionRepository';
 import { CustomClaims } from '../domain/types';
 import { DeviceSessionRecord } from '../domain/sessionRepository';
-
-// Setup Mock D1 Database specifically to inspect compiled SQL statements
-function createMockD1() {
-  const statements: { sql: string; params: any[] }[] = [];
-
-  const db: any = {
-    prepare: (sql: string) => {
-      return {
-        bind: (...params: any[]) => {
-          return {
-            sql,
-            params,
-            run: async () => {
-              statements.push({ sql, params });
-              return { success: true };
-            },
-            all: async () => {
-              statements.push({ sql, params });
-
-              if (sql.includes('device_token as deviceToken')) {
-                return {
-                  success: true,
-                  results: [
-                    { deviceToken: 'fcm_token_999' }
-                  ]
-                };
-              }
-
-              return {
-                success: true,
-                results: [
-                  {
-                    uid: 'uid_1',
-                    email: 'test@example.com',
-                    businessId: 'biz_123',
-                    role: 'o',
-                    updatedAt: 1234567,
-                  },
-                ],
-              };
-            },
-          };
-        },
-        run: async () => {
-          statements.push({ sql, params: [] });
-          return { success: true };
-        },
-      };
-    },
-    batch: async (batchStatements: any[]) => {
-      for (const stmt of batchStatements) {
-        statements.push({ sql: stmt.sql, params: stmt.params });
-      }
-      return [];
-    },
-    statements, // Expose for inspection
-  };
-
-  return db;
-}
+import { createMockD1 } from './testUtils';
 
 describe('D1 CompanyRepository & SessionRepository Tests', () => {
   it('should compile SQL statements and synchronize custom claims to D1 in batch', async () => {

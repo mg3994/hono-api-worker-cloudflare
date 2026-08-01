@@ -9,6 +9,7 @@ import { PermissionDeniedError, LimitExceededError, AuthenticationError } from '
 import { TokenService } from '../services/tokenService';
 import { IFirebaseTokenVerifier } from '../services/firebaseTokenVerifier';
 import { ILogger } from '../domain/logger';
+import { mockServiceAccount } from './testUtils';
 
 describe('ClaimsService Unit Tests', () => {
   const claimsService = new ClaimsService();
@@ -342,7 +343,7 @@ describe('GetUserClaimsUseCase Unit Tests (with Mocks)', () => {
 });
 
 describe('TokenService Unit Tests', () => {
-  const projectId = 'test-project';
+  const projectId = mockServiceAccount.project_id;
   const superAdminsStr = 'admin1@test.com,admin2@test.com';
 
   const mockTokenVerifier = (): IFirebaseTokenVerifier => ({
@@ -375,7 +376,7 @@ describe('TokenService Unit Tests', () => {
     const tokenService = new TokenService(verifier, projectId, superAdminsStr, logger);
     const context = await tokenService.verifyToken('mock_jwt_token');
 
-    expect(verifySpy).toHaveBeenCalledWith('mock_jwt_token', 'test-project');
+    expect(verifySpy).toHaveBeenCalledWith('mock_jwt_token', 'mock-test-project');
     expect(context.uid).toBe('admin_uid');
     expect(context.email).toBe('admin1@test.com');
     expect(context.isSuperAdmin).toBe(true);

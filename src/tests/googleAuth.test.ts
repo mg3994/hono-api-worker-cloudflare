@@ -1,15 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GoogleAuthService } from '../services/googleAuthService';
 import { IJwtSigner } from '../domain/jwtSigner';
-import { FirebaseServiceAccount } from '../domain/types';
+import { mockServiceAccount } from './testUtils';
 
 describe('GoogleAuthService Caching & Token Generation Unit Tests', () => {
-  const serviceAccount: FirebaseServiceAccount = {
-    project_id: 'test-project',
-    client_email: 'test@example.com',
-    private_key: 'test-key',
-  };
-
   const mockJwtSigner = (): IJwtSigner => ({
     signJwt: vi.fn().mockResolvedValue('mock_jwt_signature'),
   });
@@ -49,7 +43,7 @@ describe('GoogleAuthService Caching & Token Generation Unit Tests', () => {
     };
     fetchMock.mockResolvedValue(mockResponse);
 
-    const authService = new GoogleAuthService(serviceAccount, signer, kv);
+    const authService = new GoogleAuthService(mockServiceAccount, signer, kv);
     const token = await authService.getAccessToken();
 
     expect(token).toBe('generated_token_xyz');
@@ -71,7 +65,7 @@ describe('GoogleAuthService Caching & Token Generation Unit Tests', () => {
     };
     vi.spyOn(kv, 'get').mockResolvedValue(cachedTokenData as any);
 
-    const authService = new GoogleAuthService(serviceAccount, signer, kv);
+    const authService = new GoogleAuthService(mockServiceAccount, signer, kv);
     const token = await authService.getAccessToken();
 
     expect(token).toBe('kv_cached_token_abc');

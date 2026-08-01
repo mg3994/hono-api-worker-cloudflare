@@ -1,14 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import app from '../index';
-
-const mockEnv = {
-  FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({
-    project_id: 'mock-test-project',
-    client_email: 'mock-client@example.com',
-    private_key: '-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSlAgEAAoIBAQC3\n-----END PRIVATE KEY-----',
-  }),
-  SUPER_ADMINS: 'admin@test.com',
-};
+import { mockEnv } from './testUtils';
 
 describe('Hono Routes Integration Tests', () => {
   it('should successfully return standard guest response on GET /api/payments without any credentials', async () => {
