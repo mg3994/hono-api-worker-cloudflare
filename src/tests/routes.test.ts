@@ -159,4 +159,13 @@ describe('Hono Routes Integration Tests', () => {
     expect(body.success).toBe(false);
     expect(body.error.code).toBe('VALIDATION_FAILED');
   });
+
+  it('should block GET /api/users/phone with 401 Unauthorized if request is unauthenticated', async () => {
+    const response = await app.request('/api/users/phone?phoneNumber=%2B919876543210', undefined, mockEnv);
+    expect(response.status).toBe(401);
+
+    const body = await response.json() as any;
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('UNAUTHORIZED');
+  });
 });

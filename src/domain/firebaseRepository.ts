@@ -13,5 +13,6 @@ export interface FirebaseUserRecord {
 export interface IFirebaseRepository {
   getUserByEmail(email: string): Promise<FirebaseUserRecord | null>;
   getUserByUid(uid: string): Promise<FirebaseUserRecord | null>;
+  getUserByPhone(phoneNumber: string): Promise<FirebaseUserRecord | null>;
   setCustomClaims(uid: string, claims: CustomClaims): Promise<void>;
 }

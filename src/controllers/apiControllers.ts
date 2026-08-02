@@ -283,6 +283,26 @@ export class ApiControllers {
   }
 
   /**
+   * Controller for GET /api/users/phone
+   */
+  public static async getUserByPhone(c: Context) {
+    const user = c.get('user') as UserContext | null;
+    if (!user) {
+      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
+    }
+
+    const phoneNumber = c.req.query('phoneNumber') || '';
+    const container = c.get('container');
+
+    const targetUser = await container.getUserByPhoneUseCase.execute(user, phoneNumber);
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: targetUser,
+    });
+  }
+
+  /**
    * Controller for GET /api/payments
    */
   public static async getPayments(c: Context) {

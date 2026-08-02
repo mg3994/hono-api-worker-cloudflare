@@ -50,6 +50,12 @@ api.post(
 );
 
 /**
+ * GET /api/users/phone
+ * Retrieves a user account from Firebase matching the specified phone number.
+ */
+api.get('/users/phone', ApiControllers.getUserByPhone);
+
+/**
  * GET /api/business/:id/users
  * Retrieves all users (emails, roles) mapped to a specific business ID from D1.
  */

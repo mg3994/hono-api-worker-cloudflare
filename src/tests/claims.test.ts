@@ -5,7 +5,7 @@ import { AssignClaimsUseCase } from '../usecases/assignClaimsUseCase';
 import { GetUserClaimsUseCase } from '../usecases/getUserClaimsUseCase';
 import { IFirebaseRepository, FirebaseUserRecord } from '../domain/firebaseRepository';
 import { UserContext, CustomClaims } from '../domain/types';
-import { PermissionDeniedError, LimitExceededError, AuthenticationError } from '../domain/errors';
+import { PermissionDeniedError, LimitExceededError, AuthenticationError, ValidationError } from '../domain/errors';
 import { TokenService } from '../services/tokenService';
 import { IFirebaseTokenVerifier } from '../services/firebaseTokenVerifier';
 import { ILogger } from '../domain/logger';
@@ -561,5 +561,115 @@ describe('TokenService Unit Tests', () => {
 
     await expect(tokenService.verifyToken('bad_token')).rejects.toThrow(AuthenticationError);
     expect(logger.warn).toHaveBeenCalled();
+  });
+});
+
+describe('GetUserByPhoneUseCase Unit Tests', () => {
+  const mockFirebaseRepo = (): IFirebaseRepository => ({
+    getUserByEmail: vi.fn(),
+    getUserByUid: vi.fn(),
+    getUserByPhone: vi.fn(),
+    setCustomClaims: vi.fn(),
+  });
+
+  it('should throw ValidationError if phone number is empty', async () => {
+    const repo = mockFirebaseRepo();
+    const { GetUserByPhoneUseCase } = await import('../usecases/getUserByPhoneUseCase');
+    const useCase = new GetUserByPhoneUseCase(repo);
+
+    const caller: UserContext = {
+      uid: 'admin',
+      email: 'admin@test.com',
+      isSuperAdmin: true,
+      claims: { o: [], m: [], s: [] },
+    };
+
+    await expect(useCase.execute(caller, '')).rejects.toThrow(ValidationError);
+    await expect(useCase.execute(caller, '   ')).rejects.toThrow(ValidationError);
+  });
+
+  it('should allow Super Admin to look up by phone number', async () => {
+    const repo = mockFirebaseRepo();
+    const { GetUserByPhoneUseCase } = await import('../usecases/getUserByPhoneUseCase');
+    const useCase = new GetUserByPhoneUseCase(repo);
+
+    const caller: UserContext = {
+      uid: 'admin',
+      email: 'admin@test.com',
+      isSuperAdmin: true,
+      claims: { o: [], m: [], s: [] },
+    };
+
+    const targetUser: FirebaseUserRecord = {
+      localId: 'target_123',
+      email: 'target@test.com',
+    };
+
+    vi.spyOn(repo, 'getUserByPhone').mockResolvedValue(targetUser);
+
+    const result = await useCase.execute(caller, '+919876543210');
+    expect(result).toEqual(targetUser);
+    expect(repo.getUserByPhone).toHaveBeenCalledWith('+919876543210');
+  });
+
+  it('should allow Business Owners (o claim exists) to look up by phone number', async () => {
+    const repo = mockFirebaseRepo();
+    const { GetUserByPhoneUseCase } = await import('../usecases/getUserByPhoneUseCase');
+    const useCase = new GetUserByPhoneUseCase(repo);
+
+    const caller: UserContext = {
+      uid: 'owner',
+      email: 'owner@test.com',
+      isSuperAdmin: false,
+      claims: { o: ['biz_1'], m: [], s: [] },
+    };
+
+    const targetUser: FirebaseUserRecord = {
+      localId: 'target_123',
+      email: 'target@test.com',
+    };
+
+    vi.spyOn(repo, 'getUserByPhone').mockResolvedValue(targetUser);
+
+    const result = await useCase.execute(caller, '+919876543210');
+    expect(result).toEqual(targetUser);
+  });
+
+  it('should allow Business Managers/Moderators (m claim exists) to look up by phone number', async () => {
+    const repo = mockFirebaseRepo();
+    const { GetUserByPhoneUseCase } = await import('../usecases/getUserByPhoneUseCase');
+    const useCase = new GetUserByPhoneUseCase(repo);
+
+    const caller: UserContext = {
+      uid: 'manager',
+      email: 'manager@test.com',
+      isSuperAdmin: false,
+      claims: { o: [], m: ['biz_1'], s: [] },
+    };
+
+    const targetUser: FirebaseUserRecord = {
+      localId: 'target_123',
+      email: 'target@test.com',
+    };
+
+    vi.spyOn(repo, 'getUserByPhone').mockResolvedValue(targetUser);
+
+    const result = await useCase.execute(caller, '+919876543210');
+    expect(result).toEqual(targetUser);
+  });
+
+  it('should deny Business Staff or non-associated users with PermissionDeniedError', async () => {
+    const repo = mockFirebaseRepo();
+    const { GetUserByPhoneUseCase } = await import('../usecases/getUserByPhoneUseCase');
+    const useCase = new GetUserByPhoneUseCase(repo);
+
+    const caller: UserContext = {
+      uid: 'staff',
+      email: 'staff@test.com',
+      isSuperAdmin: false,
+      claims: { o: [], m: [], s: ['biz_1'] }, // only has staff claims
+    };
+
+    await expect(useCase.execute(caller, '+919876543210')).rejects.toThrow(PermissionDeniedError);
   });
 });

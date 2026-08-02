@@ -64,6 +64,13 @@ export class FirebaseRepository implements IFirebaseRepository {
   }
 
   /**
+   * Look up a user account by their phone number.
+   */
+  public async getUserByPhone(phoneNumber: string): Promise<FirebaseUserRecord | null> {
+    return this.lookupUser({ phoneNumber: [phoneNumber] });
+  }
+
+  /**
    * Write custom claims metadata (o, m, s) to the target user account.
    */
   public async setCustomClaims(uid: string, claims: CustomClaims): Promise<void> {

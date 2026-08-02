@@ -28,6 +28,7 @@ import { PaymentRepository } from '../repositories/paymentRepository';
 import { CreateOrderUseCase } from '../usecases/createOrderUseCase';
 import { GetOrdersUseCase } from '../usecases/getOrdersUseCase';
 import { ProcessPaymentUseCase } from '../usecases/processPaymentUseCase';
+import { GetUserByPhoneUseCase } from '../usecases/getUserByPhoneUseCase';
 
 // Messaging Imports
 import { IMessagingService } from '../domain/messagingService';
@@ -49,6 +50,7 @@ export interface AppContainer {
   createOrderUseCase: CreateOrderUseCase;
   getOrdersUseCase: GetOrdersUseCase;
   processPaymentUseCase: ProcessPaymentUseCase;
+  getUserByPhoneUseCase: GetUserByPhoneUseCase;
 }
 
 /**
@@ -142,6 +144,7 @@ export function createContainer(env: CloudflareBindings): AppContainer {
   const createOrderUseCase = new CreateOrderUseCase(orderRepository);
   const getOrdersUseCase = new GetOrdersUseCase(orderRepository);
   const processPaymentUseCase = new ProcessPaymentUseCase(orderRepository, paymentRepository);
+  const getUserByPhoneUseCase = new GetUserByPhoneUseCase(firebaseRepository);
 
   return {
     firebaseRepository,
@@ -159,5 +162,6 @@ export function createContainer(env: CloudflareBindings): AppContainer {
     createOrderUseCase,
     getOrdersUseCase,
     processPaymentUseCase,
+    getUserByPhoneUseCase,
   };
 }
