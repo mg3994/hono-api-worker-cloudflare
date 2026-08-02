@@ -67,4 +67,19 @@ export class ClaimsService implements IClaimsService {
       s: Array.from(new Set(s)),
     };
   }
+
+  /**
+   * Completely revokes/removes a business ID from all of the user's role arrays (o, m, s).
+   */
+  public revokeBusinessRole(currentClaims: CustomClaims, businessId: string): CustomClaims {
+    const o = (currentClaims.o || []).filter((id) => id !== businessId);
+    const m = (currentClaims.m || []).filter((id) => id !== businessId);
+    const s = (currentClaims.s || []).filter((id) => id !== businessId);
+
+    return {
+      o: Array.from(new Set(o)),
+      m: Array.from(new Set(m)),
+      s: Array.from(new Set(s)),
+    };
+  }
 }

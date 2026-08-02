@@ -48,6 +48,20 @@ describe('ClaimsService Unit Tests', () => {
       claimsService.updateBusinessRole(currentClaims, 'new_biz', 's', 3);
     }).toThrow(LimitExceededError);
   });
+
+  it('should completely revoke a business ID from all role arrays using revokeBusinessRole', () => {
+    const currentClaims: CustomClaims = {
+      o: ['biz_1', 'biz_2'],
+      m: ['biz_3'],
+      s: ['biz_4', 'biz_1'],
+    };
+
+    const updated = claimsService.revokeBusinessRole(currentClaims, 'biz_1');
+
+    expect(updated.o).toEqual(['biz_2']);
+    expect(updated.m).toEqual(['biz_3']);
+    expect(updated.s).toEqual(['biz_4']);
+  });
 });
 
 describe('AssignClaimsUseCase Auth & Validation Tests (with Mocks)', () => {
@@ -61,6 +75,7 @@ describe('AssignClaimsUseCase Auth & Validation Tests (with Mocks)', () => {
     const service = new ClaimsService();
     service.parseClaims = vi.fn().mockReturnValue({ o: [], m: [], s: [] });
     service.updateBusinessRole = vi.fn().mockReturnValue({ o: ['biz_100'], m: [], s: [] });
+    service.revokeBusinessRole = vi.fn().mockReturnValue({ o: [], m: [], s: [] });
     return service;
   };
 
