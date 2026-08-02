@@ -20,6 +20,15 @@ import { SessionRepository } from '../repositories/sessionRepository';
 import { ISessionRepository } from '../domain/sessionRepository';
 import { GetBusinessUsersUseCase } from '../usecases/getBusinessUsersUseCase';
 
+// Orders & Payments Imports
+import { IOrderRepository } from '../domain/orderRepository';
+import { OrderRepository } from '../repositories/orderRepository';
+import { IPaymentRepository } from '../domain/paymentRepository';
+import { PaymentRepository } from '../repositories/paymentRepository';
+import { CreateOrderUseCase } from '../usecases/createOrderUseCase';
+import { GetOrdersUseCase } from '../usecases/getOrdersUseCase';
+import { ProcessPaymentUseCase } from '../usecases/processPaymentUseCase';
+
 // Messaging Imports
 import { IMessagingService } from '../domain/messagingService';
 import { MessagingService } from '../services/messagingService';
@@ -35,6 +44,11 @@ export interface AppContainer {
   getUserClaimsUseCase: GetUserClaimsUseCase;
   getBusinessUsersUseCase: GetBusinessUsersUseCase;
   revokeClaimsUseCase: RevokeClaimsUseCase;
+  orderRepository: IOrderRepository;
+  paymentRepository: IPaymentRepository;
+  createOrderUseCase: CreateOrderUseCase;
+  getOrdersUseCase: GetOrdersUseCase;
+  processPaymentUseCase: ProcessPaymentUseCase;
 }
 
 /**
@@ -115,11 +129,19 @@ export function createContainer(env: CloudflareBindings): AppContainer {
   // Repositories (injecting googleAuthService and serviceAccount)
   const firebaseRepository = new FirebaseRepository(googleAuthService, serviceAccount);
 
+  // Orders & Payments Repositories
+  const orderRepository = new OrderRepository(d1Db);
+  const paymentRepository = new PaymentRepository(d1Db);
+
   // UseCases (injecting dependencies and config)
   const assignClaimsUseCase = new AssignClaimsUseCase(firebaseRepository, claimsService, logger, companyRepository, maxLimit);
   const getUserClaimsUseCase = new GetUserClaimsUseCase(firebaseRepository, claimsService);
   const getBusinessUsersUseCase = new GetBusinessUsersUseCase(companyRepository);
   const revokeClaimsUseCase = new RevokeClaimsUseCase(firebaseRepository, claimsService, logger, companyRepository);
+
+  const createOrderUseCase = new CreateOrderUseCase(orderRepository);
+  const getOrdersUseCase = new GetOrdersUseCase(orderRepository);
+  const processPaymentUseCase = new ProcessPaymentUseCase(orderRepository, paymentRepository);
 
   return {
     firebaseRepository,
@@ -132,5 +154,10 @@ export function createContainer(env: CloudflareBindings): AppContainer {
     getUserClaimsUseCase,
     getBusinessUsersUseCase,
     revokeClaimsUseCase,
+    orderRepository,
+    paymentRepository,
+    createOrderUseCase,
+    getOrdersUseCase,
+    processPaymentUseCase,
   };
 }

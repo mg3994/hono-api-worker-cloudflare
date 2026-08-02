@@ -1,5 +1,5 @@
 import { Context } from 'hono';
-import { UserContext, StandardResponse, DeviceSyncRequest, SendNotificationRequest, RevokeClaimRequest } from '../domain/types';
+import { UserContext, StandardResponse, DeviceSyncRequest, SendNotificationRequest, RevokeClaimRequest, CreateOrderRequest, ProcessPaymentRequest } from '../domain/types';
 import { AuthenticationError, PermissionDeniedError } from '../domain/errors';
 import { DeviceSessionRecord } from '../domain/sessionRepository';
 
@@ -219,6 +219,66 @@ export class ApiControllers {
         message: `Successfully executed push notification delivery sequence. Sent to ${result.successCount} active devices.`,
         failures: result.failures,
       },
+    });
+  }
+
+  /**
+   * Controller for POST /api/orders
+   */
+  public static async createOrder(c: Context) {
+    const user = c.get('user') as UserContext | null;
+    if (!user) {
+      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
+    }
+
+    const payload = c.req.valid('json') as CreateOrderRequest;
+    const container = c.get('container');
+
+    const order = await container.createOrderUseCase.execute(user, payload);
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: order,
+    });
+  }
+
+  /**
+   * Controller for GET /api/orders
+   */
+  public static async getOrders(c: Context) {
+    const user = c.get('user') as UserContext | null;
+    if (!user) {
+      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
+    }
+
+    const businessId = c.req.query('businessId');
+    const container = c.get('container');
+
+    const orders = await container.getOrdersUseCase.execute(user, businessId);
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: orders,
+    });
+  }
+
+  /**
+   * Controller for POST /api/payments/process
+   */
+  public static async processPayment(c: Context) {
+    const user = c.get('user') as UserContext | null;
+    if (!user) {
+      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
+    }
+
+    const payload = c.req.valid('json') as ProcessPaymentRequest;
+    const container = c.get('container');
+
+    const payment = await container.processPaymentUseCase.execute(user, payload);
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: payment,
     });
   }
 

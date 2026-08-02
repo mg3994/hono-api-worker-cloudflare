@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { sValidator } from '@hono/standard-validator';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { containerMiddleware } from '../middlewares/containerMiddleware';
-import { AssignClaimRequestSchema, DeviceSyncRequestSchema, SendNotificationRequestSchema, RevokeClaimRequestSchema } from '../domain/types';
+import { AssignClaimRequestSchema, DeviceSyncRequestSchema, SendNotificationRequestSchema, RevokeClaimRequestSchema, CreateOrderRequestSchema, ProcessPaymentRequestSchema } from '../domain/types';
 import { ValidationError } from '../domain/errors';
 import { ApiControllers } from '../controllers/apiControllers';
 
@@ -81,6 +81,40 @@ api.post(
     }
   }),
   ApiControllers.sendPushNotification
+);
+
+/**
+ * POST /api/orders
+ * Creates a new order for a specific business.
+ */
+api.post(
+  '/orders',
+  sValidator('json', CreateOrderRequestSchema, (result, c) => {
+    if (!result.success) {
+      throw new ValidationError('Validation failed', result.issues);
+    }
+  }),
+  ApiControllers.createOrder
+);
+
+/**
+ * GET /api/orders
+ * Retrieves orders for a specific business, or all orders globally for Super Admin.
+ */
+api.get('/orders', ApiControllers.getOrders);
+
+/**
+ * POST /api/payments/process
+ * Processes payment for a specific order.
+ */
+api.post(
+  '/payments/process',
+  sValidator('json', ProcessPaymentRequestSchema, (result, c) => {
+    if (!result.success) {
+      throw new ValidationError('Validation failed', result.issues);
+    }
+  }),
+  ApiControllers.processPayment
 );
 
 /**

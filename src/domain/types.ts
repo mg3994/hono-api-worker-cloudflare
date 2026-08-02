@@ -45,6 +45,21 @@ export const SendNotificationRequestSchema = z.object({
 
 export type SendNotificationRequest = z.infer<typeof SendNotificationRequestSchema>;
 
+export const CreateOrderRequestSchema = z.object({
+  businessId: z.string().min(1, { message: 'businessId cannot be empty' }),
+  amount: z.number().positive({ message: 'Amount must be a positive number' }),
+});
+
+export type CreateOrderRequest = z.infer<typeof CreateOrderRequestSchema>;
+
+export const ProcessPaymentRequestSchema = z.object({
+  orderId: z.string().min(1, { message: 'orderId cannot be empty' }),
+  amount: z.number().positive({ message: 'Amount must be a positive number' }),
+  method: z.enum(['card', 'bank', 'crypto'], { message: "Method must be 'card', 'bank', or 'crypto'" }),
+});
+
+export type ProcessPaymentRequest = z.infer<typeof ProcessPaymentRequestSchema>;
+
 export interface FirebaseServiceAccount {
   project_id: string;
   private_key: string;
