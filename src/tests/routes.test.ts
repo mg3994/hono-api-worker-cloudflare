@@ -117,4 +117,46 @@ describe('Hono Routes Integration Tests', () => {
     expect(body.success).toBe(false);
     expect(body.error.code).toBe('UNAUTHORIZED');
   });
+
+  it('should block POST /api/claims/revoke with 401 Unauthorized if unauthenticated', async () => {
+    const payload = {
+      targetEmail: 'test@example.com',
+      businessId: 'biz_123',
+    };
+
+    const response = await app.request('/api/claims/revoke', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }, mockEnv);
+
+    expect(response.status).toBe(401);
+
+    const body = await response.json() as any;
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('should block POST /api/claims/revoke with 400 Validation Error if targetEmail is invalid or missing', async () => {
+    const payload = {
+      targetEmail: 'invalid-email-format',
+      businessId: 'biz_123',
+    };
+
+    const response = await app.request('/api/claims/revoke', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }, mockEnv);
+
+    expect(response.status).toBe(400);
+
+    const body = await response.json() as any;
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('VALIDATION_FAILED');
+  });
 });

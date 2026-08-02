@@ -16,6 +16,13 @@ export const AssignClaimRequestSchema = z.object({
 
 export type AssignClaimRequest = z.infer<typeof AssignClaimRequestSchema>;
 
+export const RevokeClaimRequestSchema = z.object({
+  targetEmail: z.string().email({ message: 'Invalid target email address' }),
+  businessId: z.string().min(1, { message: 'Business ID cannot be empty' }),
+});
+
+export type RevokeClaimRequest = z.infer<typeof RevokeClaimRequestSchema>;
+
 export const DeviceSyncRequestSchema = z.object({
   action: z.enum(['SYNC_DEVICE', 'LOGOUT_DEVICE'], { message: "Action must be 'SYNC_DEVICE' or 'LOGOUT_DEVICE'" }),
   clientId: z.string().min(1, { message: 'clientId cannot be empty' }),

@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { sValidator } from '@hono/standard-validator';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { containerMiddleware } from '../middlewares/containerMiddleware';
-import { AssignClaimRequestSchema, DeviceSyncRequestSchema, SendNotificationRequestSchema } from '../domain/types';
+import { AssignClaimRequestSchema, DeviceSyncRequestSchema, SendNotificationRequestSchema, RevokeClaimRequestSchema } from '../domain/types';
 import { ValidationError } from '../domain/errors';
 import { ApiControllers } from '../controllers/apiControllers';
 
@@ -33,6 +33,20 @@ api.post(
     }
   }),
   ApiControllers.assignClaims
+);
+
+/**
+ * POST /api/claims/revoke
+ * Revokes custom role claims for a specific user and business ID from both Firebase and D1.
+ */
+api.post(
+  '/claims/revoke',
+  sValidator('json', RevokeClaimRequestSchema, (result, c) => {
+    if (!result.success) {
+      throw new ValidationError('Validation failed', result.issues);
+    }
+  }),
+  ApiControllers.revokeClaims
 );
 
 /**

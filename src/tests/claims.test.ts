@@ -64,6 +64,144 @@ describe('ClaimsService Unit Tests', () => {
   });
 });
 
+describe('RevokeClaimsUseCase Auth & Validation Tests (with Mocks)', () => {
+  const mockFirebaseRepo = (): IFirebaseRepository => ({
+    getUserByEmail: vi.fn(),
+    getUserByUid: vi.fn(),
+    setCustomClaims: vi.fn(),
+  });
+
+  const mockClaimsService = (): IClaimsService => {
+    const service = new ClaimsService();
+    service.parseClaims = vi.fn().mockReturnValue({ o: [], m: [], s: [] });
+    service.revokeBusinessRole = vi.fn().mockReturnValue({ o: [], m: [], s: [] });
+    return service;
+  };
+
+  const mockLogger = (): ILogger => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  });
+
+  it('should allow Super Admin to revoke any business role of any user', async () => {
+    const repo = mockFirebaseRepo();
+    const service = mockClaimsService();
+    const logger = mockLogger();
+    const { RevokeClaimsUseCase } = await import('../usecases/revokeClaimsUseCase');
+    const useCase = new RevokeClaimsUseCase(repo, service, logger);
+
+    const caller: UserContext = {
+      uid: 'admin_1',
+      email: 'superadmin@example.com',
+      isSuperAdmin: true,
+      claims: { o: [], m: [], s: [] },
+    };
+
+    const targetUser: FirebaseUserRecord = {
+      localId: 'user_123',
+      email: 'target@example.com',
+      customAttributes: JSON.stringify({ o: [], m: [], s: [] }),
+    };
+
+    vi.spyOn(repo, 'getUserByEmail').mockResolvedValue(targetUser);
+    vi.spyOn(repo, 'setCustomClaims').mockResolvedValue();
+
+    await useCase.execute(caller, {
+      targetEmail: 'target@example.com',
+      businessId: 'biz_100',
+    });
+
+    expect(repo.setCustomClaims).toHaveBeenCalledWith('user_123', { o: [], m: [], s: [] });
+  });
+
+  it('should allow Owner of a business to revoke roles for others for that business', async () => {
+    const repo = mockFirebaseRepo();
+    const service = mockClaimsService();
+    const logger = mockLogger();
+    const { RevokeClaimsUseCase } = await import('../usecases/revokeClaimsUseCase');
+    const useCase = new RevokeClaimsUseCase(repo, service, logger);
+
+    const caller: UserContext = {
+      uid: 'owner_1',
+      email: 'owner@example.com',
+      isSuperAdmin: false,
+      claims: { o: ['biz_100'], m: [], s: [] }, // Caller owns biz_100
+    };
+
+    const targetUser: FirebaseUserRecord = {
+      localId: 'user_123',
+      email: 'target@example.com',
+      customAttributes: JSON.stringify({ o: [], m: [], s: ['biz_100'] }), // Target is currently staff
+    };
+
+    vi.spyOn(repo, 'getUserByEmail').mockResolvedValue(targetUser);
+    vi.spyOn(repo, 'setCustomClaims').mockResolvedValue();
+    vi.spyOn(service, 'parseClaims').mockReturnValue({ o: [], m: [], s: ['biz_100'] });
+
+    await useCase.execute(caller, {
+      targetEmail: 'target@example.com',
+      businessId: 'biz_100',
+    });
+
+    expect(repo.setCustomClaims).toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalled();
+  });
+
+  it('should deny non-owner and non-super-admin from revoking with PermissionDeniedError', async () => {
+    const repo = mockFirebaseRepo();
+    const service = mockClaimsService();
+    const logger = mockLogger();
+    const { RevokeClaimsUseCase } = await import('../usecases/revokeClaimsUseCase');
+    const useCase = new RevokeClaimsUseCase(repo, service, logger);
+
+    const caller: UserContext = {
+      uid: 'user_2',
+      email: 'user2@example.com',
+      isSuperAdmin: false,
+      claims: { o: ['another_biz'], m: [], s: [] }, // Caller does NOT own biz_100
+    };
+
+    await expect(
+      useCase.execute(caller, {
+        targetEmail: 'target@example.com',
+        businessId: 'biz_100',
+      })
+    ).rejects.toThrow(PermissionDeniedError);
+  });
+
+  it('should prevent standard Business Owner from revoking Owner role of another user', async () => {
+    const repo = mockFirebaseRepo();
+    const service = mockClaimsService();
+    const logger = mockLogger();
+    const { RevokeClaimsUseCase } = await import('../usecases/revokeClaimsUseCase');
+    const useCase = new RevokeClaimsUseCase(repo, service, logger);
+
+    const caller: UserContext = {
+      uid: 'owner_1',
+      email: 'owner@example.com',
+      isSuperAdmin: false,
+      claims: { o: ['biz_100'], m: [], s: [] }, // Caller owns biz_100
+    };
+
+    const targetUser: FirebaseUserRecord = {
+      localId: 'user_123',
+      email: 'target@example.com',
+      customAttributes: JSON.stringify({ o: ['biz_100'], m: [], s: [] }), // Target is currently owner
+    };
+
+    vi.spyOn(repo, 'getUserByEmail').mockResolvedValue(targetUser);
+    vi.spyOn(service, 'parseClaims').mockReturnValue({ o: ['biz_100'], m: [], s: [] });
+
+    await expect(
+      useCase.execute(caller, {
+        targetEmail: 'target@example.com',
+        businessId: 'biz_100',
+      })
+    ).rejects.toThrow(/Only Super Admins are authorized to remove or demote an Owner role/);
+  });
+});
+
 describe('AssignClaimsUseCase Auth & Validation Tests (with Mocks)', () => {
   const mockFirebaseRepo = (): IFirebaseRepository => ({
     getUserByEmail: vi.fn(),

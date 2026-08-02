@@ -10,6 +10,7 @@ import { ITokenService } from '../domain/tokenService';
 import { ConsoleLogger } from './consoleLogger';
 import { AssignClaimsUseCase } from '../usecases/assignClaimsUseCase';
 import { GetUserClaimsUseCase } from '../usecases/getUserClaimsUseCase';
+import { RevokeClaimsUseCase } from '../usecases/revokeClaimsUseCase';
 import { FirebaseServiceAccount } from '../domain/types';
 
 // D1 Persistence Imports
@@ -33,6 +34,7 @@ export interface AppContainer {
   assignClaimsUseCase: AssignClaimsUseCase;
   getUserClaimsUseCase: GetUserClaimsUseCase;
   getBusinessUsersUseCase: GetBusinessUsersUseCase;
+  revokeClaimsUseCase: RevokeClaimsUseCase;
 }
 
 /**
@@ -117,6 +119,7 @@ export function createContainer(env: CloudflareBindings): AppContainer {
   const assignClaimsUseCase = new AssignClaimsUseCase(firebaseRepository, claimsService, logger, companyRepository, maxLimit);
   const getUserClaimsUseCase = new GetUserClaimsUseCase(firebaseRepository, claimsService);
   const getBusinessUsersUseCase = new GetBusinessUsersUseCase(companyRepository);
+  const revokeClaimsUseCase = new RevokeClaimsUseCase(firebaseRepository, claimsService, logger, companyRepository);
 
   return {
     firebaseRepository,
@@ -128,5 +131,6 @@ export function createContainer(env: CloudflareBindings): AppContainer {
     assignClaimsUseCase,
     getUserClaimsUseCase,
     getBusinessUsersUseCase,
+    revokeClaimsUseCase,
   };
 }

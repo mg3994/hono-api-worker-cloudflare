@@ -1,5 +1,5 @@
 import { Context } from 'hono';
-import { UserContext, StandardResponse, DeviceSyncRequest, SendNotificationRequest } from '../domain/types';
+import { UserContext, StandardResponse, DeviceSyncRequest, SendNotificationRequest, RevokeClaimRequest } from '../domain/types';
 import { AuthenticationError, PermissionDeniedError } from '../domain/errors';
 import { DeviceSessionRecord } from '../domain/sessionRepository';
 
@@ -52,6 +52,29 @@ export class ApiControllers {
       success: true,
       data: {
         message: `Successfully updated roles for ${payload.targetEmail}`,
+        updatedClaims,
+      },
+    });
+  }
+
+  /**
+   * Controller for POST /api/claims/revoke
+   */
+  public static async revokeClaims(c: Context) {
+    const user = c.get('user') as UserContext | null;
+    if (!user) {
+      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
+    }
+
+    const payload = c.req.valid('json') as RevokeClaimRequest;
+    const container = c.get('container');
+
+    const updatedClaims = await container.revokeClaimsUseCase.execute(user, payload);
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: {
+        message: `Successfully revoked all roles for business ID ${payload.businessId} from target user ${payload.targetEmail}`,
         updatedClaims,
       },
     });
