@@ -1,5 +1,5 @@
 import { ErrorHandler } from 'hono';
-import { AppError, ValidationError } from '../domain/errors';
+import { AppError } from '../domain/errors';
 import { StandardResponse } from '../domain/types';
 import { ConsoleLogger } from '../infrastructure/consoleLogger';
 
@@ -28,7 +28,7 @@ export const globalErrorHandler = (): ErrorHandler => {
         error: {
           code: err.errorCode,
           message: err.message,
-          ...(err instanceof ValidationError ? { details: err.details } : {}),
+          ...(err.details ? { details: err.details } : {}),
         },
       };
 
