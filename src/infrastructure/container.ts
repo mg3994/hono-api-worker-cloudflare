@@ -30,6 +30,10 @@ import { GetOrdersUseCase } from '../usecases/getOrdersUseCase';
 import { ProcessPaymentUseCase } from '../usecases/processPaymentUseCase';
 import { GetUserByPhoneUseCase } from '../usecases/getUserByPhoneUseCase';
 
+// Verification Engine
+import { IOrderVerificationService } from '../domain/orderVerificationService';
+import { OrderVerificationService } from '../services/orderVerificationService';
+
 // Messaging Imports
 import { IMessagingService } from '../domain/messagingService';
 import { MessagingService } from '../services/messagingService';
@@ -51,6 +55,7 @@ export interface AppContainer {
   getOrdersUseCase: GetOrdersUseCase;
   processPaymentUseCase: ProcessPaymentUseCase;
   getUserByPhoneUseCase: GetUserByPhoneUseCase;
+  orderVerificationService: IOrderVerificationService;
 }
 
 /**
@@ -145,6 +150,7 @@ export function createContainer(env: CloudflareBindings): AppContainer {
   const getOrdersUseCase = new GetOrdersUseCase(orderRepository);
   const processPaymentUseCase = new ProcessPaymentUseCase(orderRepository, paymentRepository);
   const getUserByPhoneUseCase = new GetUserByPhoneUseCase(firebaseRepository);
+  const orderVerificationService = new OrderVerificationService(env.BLOGGER_API_KEY || 'blogger_mock_api_key');
 
   return {
     firebaseRepository,
@@ -163,5 +169,6 @@ export function createContainer(env: CloudflareBindings): AppContainer {
     getOrdersUseCase,
     processPaymentUseCase,
     getUserByPhoneUseCase,
+    orderVerificationService,
   };
 }

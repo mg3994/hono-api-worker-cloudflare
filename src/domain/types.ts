@@ -73,6 +73,20 @@ export interface UserContext {
   claims: CustomClaims;
 }
 
+export interface OrderItemVerificationIssue {
+  itemSkuOrId: string;
+  type: 'price_mismatch' | 'out_of_stock' | 'business_closed' | 'other';
+  message: string;
+  expectedValue?: string | number;
+  actualValue?: string | number;
+}
+
+export interface OrderVerificationResult {
+  isValid: boolean;
+  issues: OrderItemVerificationIssue[];
+  details?: string;
+}
+
 export interface StandardResponse<T = any> {
   success: boolean;
   data?: T;

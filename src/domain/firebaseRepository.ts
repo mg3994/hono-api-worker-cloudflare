@@ -7,6 +7,8 @@ export interface FirebaseUserRecord {
    */
   localId: string;
   email: string;
+  phoneNumber?: string;
+  photoUrl?: string;
   customAttributes?: string; // stringified custom claims JSON
 }
 
