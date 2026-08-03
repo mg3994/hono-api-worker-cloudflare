@@ -1,5 +1,5 @@
 import { Context } from 'hono';
-import { UserContext, StandardResponse, DeviceSyncRequest, SendNotificationRequest, RevokeClaimRequest, CreateOrderRequest, ProcessPaymentRequest } from '../domain/types';
+import { UserContext, StandardResponse, DeviceSyncRequest, SendNotificationRequest, RevokeClaimRequest, CreateOrderRequest, ProcessPaymentRequest, CreateBlogPostRequest, UpdateBlogPostRequest } from '../domain/types';
 import { AuthenticationError, PermissionDeniedError } from '../domain/errors';
 import { DeviceSessionRecord } from '../domain/sessionRepository';
 
@@ -299,6 +299,107 @@ export class ApiControllers {
     return c.json<StandardResponse>({
       success: true,
       data: targetUser,
+    });
+  }
+
+  /**
+   * Controller for POST /api/blogs/:blogId/posts
+   */
+  public static async createBlogPost(c: Context) {
+    const user = c.get('user') as UserContext | null;
+    if (!user) {
+      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
+    }
+
+    const blogId = c.req.param('blogId');
+    if (!blogId) {
+      throw new Error('Blog ID parameter is missing.');
+    }
+
+    const payload = c.req.valid('json') as CreateBlogPostRequest;
+    const container = c.get('container');
+
+    const post = await container.createBlogPostUseCase.execute(user, blogId, payload);
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: post,
+    });
+  }
+
+  /**
+   * Controller for PUT /api/blogs/:blogId/posts/:postId
+   */
+  public static async updateBlogPost(c: Context) {
+    const user = c.get('user') as UserContext | null;
+    if (!user) {
+      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
+    }
+
+    const blogId = c.req.param('blogId');
+    const postId = c.req.param('postId');
+    if (!blogId || !postId) {
+      throw new Error('Blog ID or Post ID parameter is missing.');
+    }
+
+    const payload = c.req.valid('json') as UpdateBlogPostRequest;
+    const container = c.get('container');
+
+    const post = await container.updateBlogPostUseCase.execute(user, blogId, postId, payload);
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: post,
+    });
+  }
+
+  /**
+   * Controller for GET /api/blogs/:blogId/posts/:postId
+   */
+  public static async getBlogPost(c: Context) {
+    const user = c.get('user') as UserContext | null;
+    if (!user) {
+      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
+    }
+
+    const blogId = c.req.param('blogId');
+    const postId = c.req.param('postId');
+    if (!blogId || !postId) {
+      throw new Error('Blog ID or Post ID parameter is missing.');
+    }
+
+    const container = c.get('container');
+    const post = await container.getBlogPostUseCase.execute(user, blogId, postId);
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: post,
+    });
+  }
+
+  /**
+   * Controller for DELETE /api/blogs/:blogId/posts/:postId
+   */
+  public static async deleteBlogPost(c: Context) {
+    const user = c.get('user') as UserContext | null;
+    if (!user) {
+      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
+    }
+
+    const blogId = c.req.param('blogId');
+    const postId = c.req.param('postId');
+    if (!blogId || !postId) {
+      throw new Error('Blog ID or Post ID parameter is missing.');
+    }
+
+    const container = c.get('container');
+    await container.deleteBlogPostUseCase.execute(user, blogId, postId);
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: {
+        message: `Successfully deleted Blogger post with ID ${postId} under blog ${blogId}`,
+      },
     });
   }
 

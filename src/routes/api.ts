@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { sValidator } from '@hono/standard-validator';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { containerMiddleware } from '../middlewares/containerMiddleware';
-import { AssignClaimRequestSchema, DeviceSyncRequestSchema, SendNotificationRequestSchema, RevokeClaimRequestSchema, CreateOrderRequestSchema, ProcessPaymentRequestSchema } from '../domain/types';
+import { AssignClaimRequestSchema, DeviceSyncRequestSchema, SendNotificationRequestSchema, RevokeClaimRequestSchema, CreateOrderRequestSchema, ProcessPaymentRequestSchema, CreateBlogPostRequestSchema, UpdateBlogPostRequestSchema } from '../domain/types';
 import { ValidationError } from '../domain/errors';
 import { ApiControllers } from '../controllers/apiControllers';
 
@@ -54,6 +54,33 @@ api.post(
  * Retrieves a user account from Firebase matching the specified phone number.
  */
 api.get('/users/phone', ApiControllers.getUserByPhone);
+
+/**
+ * Blogger Posts CRUD API Routes
+ * Only Super Admins, Business Owners, or Managers can manage blogs they belong to.
+ */
+api.post(
+  '/blogs/:blogId/posts',
+  sValidator('json', CreateBlogPostRequestSchema, (result, c) => {
+    if (!result.success) {
+      throw new ValidationError('Validation failed', result.issues);
+    }
+  }),
+  ApiControllers.createBlogPost
+);
+
+api.put(
+  '/blogs/:blogId/posts/:postId',
+  sValidator('json', UpdateBlogPostRequestSchema, (result, c) => {
+    if (!result.success) {
+      throw new ValidationError('Validation failed', result.issues);
+    }
+  }),
+  ApiControllers.updateBlogPost
+);
+
+api.get('/blogs/:blogId/posts/:postId', ApiControllers.getBlogPost);
+api.delete('/blogs/:blogId/posts/:postId', ApiControllers.deleteBlogPost);
 
 /**
  * GET /api/business/:id/users

@@ -29,10 +29,16 @@ import { CreateOrderUseCase } from '../usecases/createOrderUseCase';
 import { GetOrdersUseCase } from '../usecases/getOrdersUseCase';
 import { ProcessPaymentUseCase } from '../usecases/processPaymentUseCase';
 import { GetUserByPhoneUseCase } from '../usecases/getUserByPhoneUseCase';
+import { CreateBlogPostUseCase } from '../usecases/createBlogPostUseCase';
+import { UpdateBlogPostUseCase } from '../usecases/updateBlogPostUseCase';
+import { GetBlogPostUseCase } from '../usecases/getBlogPostUseCase';
+import { DeleteBlogPostUseCase } from '../usecases/deleteBlogPostUseCase';
 
-// Verification Engine
+// Verification Engine & Blogger CRUD Service
 import { IOrderVerificationService } from '../domain/orderVerificationService';
 import { OrderVerificationService } from '../services/orderVerificationService';
+import { IBloggerService } from '../domain/bloggerService';
+import { BloggerService } from '../services/bloggerService';
 
 // Messaging Imports
 import { IMessagingService } from '../domain/messagingService';
@@ -56,6 +62,11 @@ export interface AppContainer {
   processPaymentUseCase: ProcessPaymentUseCase;
   getUserByPhoneUseCase: GetUserByPhoneUseCase;
   orderVerificationService: IOrderVerificationService;
+  bloggerService: IBloggerService;
+  createBlogPostUseCase: CreateBlogPostUseCase;
+  updateBlogPostUseCase: UpdateBlogPostUseCase;
+  getBlogPostUseCase: GetBlogPostUseCase;
+  deleteBlogPostUseCase: DeleteBlogPostUseCase;
 }
 
 /**
@@ -151,6 +162,12 @@ export function createContainer(env: CloudflareBindings): AppContainer {
   const processPaymentUseCase = new ProcessPaymentUseCase(orderRepository, paymentRepository);
   const getUserByPhoneUseCase = new GetUserByPhoneUseCase(firebaseRepository);
   const orderVerificationService = new OrderVerificationService(env.BLOGGER_API_KEY || 'blogger_mock_api_key');
+  const bloggerService = new BloggerService(env.BLOGGER_API_KEY || 'blogger_mock_api_key');
+
+  const createBlogPostUseCase = new CreateBlogPostUseCase(bloggerService);
+  const updateBlogPostUseCase = new UpdateBlogPostUseCase(bloggerService);
+  const getBlogPostUseCase = new GetBlogPostUseCase(bloggerService);
+  const deleteBlogPostUseCase = new DeleteBlogPostUseCase(bloggerService);
 
   return {
     firebaseRepository,
@@ -170,5 +187,10 @@ export function createContainer(env: CloudflareBindings): AppContainer {
     processPaymentUseCase,
     getUserByPhoneUseCase,
     orderVerificationService,
+    bloggerService,
+    createBlogPostUseCase,
+    updateBlogPostUseCase,
+    getBlogPostUseCase,
+    deleteBlogPostUseCase,
   };
 }
