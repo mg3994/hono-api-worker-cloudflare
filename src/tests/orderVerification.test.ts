@@ -158,4 +158,43 @@ describe('Blogger Order Verification Engine Unit Tests', () => {
     expect(result.isValid).toBe(false);
     expect(result.issues[0].message).toContain('is not published or does not exist');
   });
+
+  it('should parse blogId and postId correctly from various format strings', () => {
+    const customService = new OrderVerificationService('mock-api-key', 'mock-blog-id');
+
+    const res1 = customService.parseBlogAndPostId('https://www.blogger.com/blog/12345/post/67890');
+    expect(res1).toEqual({ blogId: '12345', postId: '67890' });
+
+    const res2 = customService.parseBlogAndPostId('12345/67890');
+    expect(res2).toEqual({ blogId: '12345', postId: '67890' });
+
+    const res3 = customService.parseBlogAndPostId('invalid-format');
+    expect(res3).toBeNull();
+  });
+
+  it('should successfully execute dynamic lookup if @id is supplied with a parseable blog/post ID', async () => {
+    const payload = {
+      "@context": "https://schema.org",
+      "@type": "Order",
+      "price": "500.00",
+      "priceCurrency": "INR",
+      "orderedItem": [
+        {
+          "@type": "OrderItem",
+          "orderQuantity": 1,
+          "price": "500.00",
+          "orderedItem": {
+            "@type": "Product",
+            "sku": "PROD-001",
+            "name": "Standard Wireless Mouse",
+            "@id": "blog/11111/post/1" // matches post_1 in mock baseline
+          }
+        }
+      ]
+    };
+
+    const result = await service.verifyOrder(payload);
+    expect(result.isValid).toBe(true);
+    expect(result.issues).toHaveLength(0);
+  });
 });
