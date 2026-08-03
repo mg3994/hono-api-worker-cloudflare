@@ -13,20 +13,28 @@ export class OrderVerificationService implements IOrderVerificationService {
   /**
    * Parses blogId and postId from a given @id URI or string format.
    * Format matches:
-   * - "https://www.blogger.com/blog/12345/post/67890"
-   * - "12345/67890"
+   * - "blogs/118774185466060931/posts/159915394249811386" (Google Blogger API v3 resource path)
+   * - "https://www.blogger.com/blog/12345/post/67890" (Web link)
+   * - "118774185466060931/159915394249811386" (Slash separated digits)
    */
   public parseBlogAndPostId(idStr: string): { blogId: string; postId: string } | null {
     if (!idStr) return null;
 
-    // Pattern 1: URL/string containing blog/{blogId}/post/{postId}
+    // Pattern 1: Standard Google Blogger API v3 path e.g. blogs/{blogId}/posts/{postId}
+    const apiPattern = /blogs\/(\d+)\/posts\/(\d+)/i;
+    const apiMatch = idStr.match(apiPattern);
+    if (apiMatch) {
+      return { blogId: apiMatch[1], postId: apiMatch[2] };
+    }
+
+    // Pattern 2: Web URL containing blog/{blogId}/post/{postId}
     const urlPattern = /blog\/(\d+)\/post\/(\d+)/i;
     const urlMatch = idStr.match(urlPattern);
     if (urlMatch) {
       return { blogId: urlMatch[1], postId: urlMatch[2] };
     }
 
-    // Pattern 2: Simple "blogId/postId" format e.g. "12345/67890"
+    // Pattern 3: Simple digit slash e.g. "118774185466060931/159915394249811386"
     const simplePattern = /^(\d+)\/(\d+)$/;
     const simpleMatch = idStr.match(simplePattern);
     if (simpleMatch) {

@@ -162,11 +162,20 @@ describe('Blogger Order Verification Engine Unit Tests', () => {
   it('should parse blogId and postId correctly from various format strings', () => {
     const customService = new OrderVerificationService('mock-api-key', 'mock-blog-id');
 
+    // Web URL
     const res1 = customService.parseBlogAndPostId('https://www.blogger.com/blog/12345/post/67890');
     expect(res1).toEqual({ blogId: '12345', postId: '67890' });
 
+    // Simple slash digits
     const res2 = customService.parseBlogAndPostId('12345/67890');
     expect(res2).toEqual({ blogId: '12345', postId: '67890' });
+
+    // Google Blogger API resource URI path (from user instructions)
+    const resBloggerApi = customService.parseBlogAndPostId('blogs/118774185466060931/posts/159915394249811386');
+    expect(resBloggerApi).toEqual({
+      blogId: '118774185466060931',
+      postId: '159915394249811386'
+    });
 
     const res3 = customService.parseBlogAndPostId('invalid-format');
     expect(res3).toBeNull();
