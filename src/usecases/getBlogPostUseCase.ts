@@ -9,7 +9,7 @@ export class GetBlogPostUseCase {
     this.bloggerService = bloggerService;
   }
 
-  async execute(caller: UserContext, blogId: string, postId: string): Promise<BloggerPost | null> {
+  async execute(caller: UserContext, blogId: string, postId: string, accessToken?: string): Promise<BloggerPost | null> {
     const isSuperAdmin = caller.isSuperAdmin;
     const isAssociated =
       caller.claims?.o?.includes(blogId) ||

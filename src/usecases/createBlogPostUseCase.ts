@@ -9,7 +9,12 @@ export class CreateBlogPostUseCase {
     this.bloggerService = bloggerService;
   }
 
-  async execute(caller: UserContext, blogId: string, request: CreateBlogPostRequest): Promise<BloggerPost> {
+  async execute(
+    caller: UserContext,
+    blogId: string,
+    accessToken: string,
+    request: CreateBlogPostRequest
+  ): Promise<BloggerPost> {
     const isSuperAdmin = caller.isSuperAdmin;
     const isAssociated =
       caller.claims?.o?.includes(blogId) ||
@@ -20,6 +25,11 @@ export class CreateBlogPostUseCase {
       throw new PermissionDeniedError('Permission denied: You can only manage Blogger posts for blogs you own or manage.');
     }
 
-    return this.bloggerService.createPost(blogId, request.title, request.content, request.isDraft);
+    return this.bloggerService.createPost(blogId, accessToken, {
+      title: request.title,
+      content: request.content,
+      labels: request.labels,
+      isDraft: request.isDraft,
+    });
   }
 }

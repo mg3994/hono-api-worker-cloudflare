@@ -63,6 +63,7 @@ export type ProcessPaymentRequest = z.infer<typeof ProcessPaymentRequestSchema>;
 export const CreateBlogPostRequestSchema = z.object({
   title: z.string().min(1, { message: 'Title cannot be empty' }),
   content: z.string().min(1, { message: 'Content cannot be empty' }),
+  labels: z.array(z.string()).optional(),
   isDraft: z.boolean().optional().default(false),
 });
 
@@ -71,10 +72,24 @@ export type CreateBlogPostRequest = z.infer<typeof CreateBlogPostRequestSchema>;
 export const UpdateBlogPostRequestSchema = z.object({
   title: z.string().optional(),
   content: z.string().optional(),
+  labels: z.array(z.string()).optional(),
   isDraft: z.boolean().optional(),
 });
 
 export type UpdateBlogPostRequest = z.infer<typeof UpdateBlogPostRequestSchema>;
+
+export const CreateBlogCommentRequestSchema = z.object({
+  content: z.string().min(1, { message: 'Comment content cannot be empty' }),
+});
+
+export type CreateBlogCommentRequest = z.infer<typeof CreateBlogCommentRequestSchema>;
+
+export const CreateBlogRequestSchema = z.object({
+  name: z.string().min(1, { message: 'Blog name cannot be empty' }),
+  description: z.string().optional().default(''),
+});
+
+export type CreateBlogRequest = z.infer<typeof CreateBlogRequestSchema>;
 
 export interface FirebaseServiceAccount {
   project_id: string;

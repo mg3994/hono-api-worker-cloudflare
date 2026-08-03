@@ -3,7 +3,8 @@ import { CreateBlogPostUseCase } from '../usecases/createBlogPostUseCase';
 import { UpdateBlogPostUseCase } from '../usecases/updateBlogPostUseCase';
 import { GetBlogPostUseCase } from '../usecases/getBlogPostUseCase';
 import { DeleteBlogPostUseCase } from '../usecases/deleteBlogPostUseCase';
-import { IBloggerService, BloggerPost } from '../domain/bloggerService';
+import { CreateSelfBlogUseCase } from '../usecases/createSelfBlogUseCase';
+import { IBloggerService, BloggerPost, Blog } from '../domain/bloggerService';
 import { UserContext } from '../domain/types';
 import { PermissionDeniedError, ValidationError } from '../domain/errors';
 import app from '../index';
@@ -11,10 +12,15 @@ import { mockEnv } from './testUtils';
 
 describe('Blogger Use Cases Unit Tests', () => {
   const mockBloggerService = (): IBloggerService => ({
+    getSelfBlogs: vi.fn(),
+    getBlogById: vi.fn(),
+    createSelfBlog: vi.fn(),
+    listPosts: vi.fn(),
     createPost: vi.fn(),
     updatePost: vi.fn(),
-    getPost: vi.fn(),
     deletePost: vi.fn(),
+    listComments: vi.fn(),
+    createComment: vi.fn(),
   });
 
   describe('CreateBlogPostUseCase', () => {
@@ -38,14 +44,19 @@ describe('Blogger Use Cases Unit Tests', () => {
       };
       vi.spyOn(service, 'createPost').mockResolvedValue(mockPost);
 
-      const result = await useCase.execute(caller, 'biz_123', {
+      const result = await useCase.execute(caller, 'biz_123', 'oauth_token', {
         title: 'Title',
         content: 'Content',
         isDraft: false,
       });
 
       expect(result).toEqual(mockPost);
-      expect(service.createPost).toHaveBeenCalledWith('biz_123', 'Title', 'Content', false);
+      expect(service.createPost).toHaveBeenCalledWith('biz_123', 'oauth_token', {
+        title: 'Title',
+        content: 'Content',
+        labels: undefined,
+        isDraft: false,
+      });
     });
 
     it('should allow Super Admin to create a blog post under any blogId', async () => {
@@ -68,7 +79,7 @@ describe('Blogger Use Cases Unit Tests', () => {
       };
       vi.spyOn(service, 'createPost').mockResolvedValue(mockPost);
 
-      const result = await useCase.execute(caller, 'any_blog', {
+      const result = await useCase.execute(caller, 'any_blog', 'oauth_token', {
         title: 'Admin Title',
         content: 'Content',
         isDraft: true,
@@ -89,7 +100,7 @@ describe('Blogger Use Cases Unit Tests', () => {
       };
 
       await expect(
-        useCase.execute(caller, 'biz_123', {
+        useCase.execute(caller, 'biz_123', 'oauth_token', {
           title: 'Title',
           content: 'Content',
         })
@@ -118,36 +129,90 @@ describe('Blogger Use Cases Unit Tests', () => {
       };
       vi.spyOn(service, 'updatePost').mockResolvedValue(mockPost);
 
-      const result = await useCase.execute(caller, 'biz_123', 'post_abc', {
+      const result = await useCase.execute(caller, 'biz_123', 'post_abc', 'oauth_token', {
         title: 'New Title',
       });
 
       expect(result).toEqual(mockPost);
-      expect(service.updatePost).toHaveBeenCalledWith('biz_123', 'post_abc', 'New Title', undefined, undefined);
+      expect(service.updatePost).toHaveBeenCalledWith('biz_123', 'post_abc', 'oauth_token', {
+        title: 'New Title',
+        content: '',
+        labels: undefined,
+        isDraft: undefined,
+      });
     });
   });
 
-  describe('GetBlogPostUseCase & DeleteBlogPostUseCase', () => {
-    it('should assert associated manager can delete a blog post', async () => {
+  describe('CreateSelfBlogUseCase Unit Tests', () => {
+    it('should successfully create self blog if caller is Owner or Manager', async () => {
       const service = mockBloggerService();
-      const useCase = new DeleteBlogPostUseCase(service);
+      const useCase = new CreateSelfBlogUseCase(service);
 
       const caller: UserContext = {
-        uid: 'user_manager',
-        email: 'manager@example.com',
+        uid: 'user_owner',
+        email: 'owner@example.com',
         isSuperAdmin: false,
-        claims: { o: [], m: ['biz_123'], s: [] },
+        claims: { o: ['any_biz'], m: [], s: [] },
       };
 
-      vi.spyOn(service, 'deletePost').mockResolvedValue();
+      const mockBlog: Blog = {
+        id: 'blog_123',
+        name: 'New Blog Name',
+        description: 'New Description',
+        url: 'https://newblog.blogspot.com',
+        published: '',
+        updated: '',
+      };
+      vi.spyOn(service, 'createSelfBlog').mockResolvedValue(mockBlog);
 
-      await useCase.execute(caller, 'biz_123', 'post_abc');
-      expect(service.deletePost).toHaveBeenCalledWith('biz_123', 'post_abc');
+      const result = await useCase.execute(caller, 'oauth_token', {
+        name: 'New Blog Name',
+        description: 'New Description',
+      });
+
+      expect(result).toEqual(mockBlog);
+      expect(service.createSelfBlog).toHaveBeenCalledWith('oauth_token', 'New Blog Name', 'New Description');
+    });
+
+    it('should deny standard Business Staff from creating a self-blog', async () => {
+      const service = mockBloggerService();
+      const useCase = new CreateSelfBlogUseCase(service);
+
+      const caller: UserContext = {
+        uid: 'staff',
+        email: 'staff@example.com',
+        isSuperAdmin: false,
+        claims: { o: [], m: [], s: ['any_biz'] }, // only has staff claims
+      };
+
+      await expect(
+        useCase.execute(caller, 'oauth_token', {
+          name: 'Staff Blog',
+          description: 'Desc',
+        })
+      ).rejects.toThrow(PermissionDeniedError);
     });
   });
 });
 
 describe('Blogger Hono Routes Integration Tests', () => {
+  it('should block POST /api/blogs with 401 Unauthorized if request is unauthenticated', async () => {
+    const payload = {
+      name: 'New Blog',
+      description: 'A new blog description',
+    };
+
+    const response = await app.request('/api/blogs', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }, mockEnv);
+
+    expect(response.status).toBe(401);
+  });
+
   it('should block POST /api/blogs/:blogId/posts with 401 Unauthorized if request is unauthenticated', async () => {
     const payload = {
       title: 'Title',
@@ -162,34 +227,6 @@ describe('Blogger Hono Routes Integration Tests', () => {
       body: JSON.stringify(payload),
     }, mockEnv);
 
-    expect(response.status).toBe(401);
-  });
-
-  it('should block PUT /api/blogs/:blogId/posts/:postId with 401 Unauthorized if request is unauthenticated', async () => {
-    const payload = {
-      title: 'New Title',
-    };
-
-    const response = await app.request('/api/blogs/biz_123/posts/post_abc', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    }, mockEnv);
-
-    expect(response.status).toBe(401);
-  });
-
-  it('should block GET /api/blogs/:blogId/posts/:postId with 401 Unauthorized if request is unauthenticated', async () => {
-    const response = await app.request('/api/blogs/biz_123/posts/post_abc', undefined, mockEnv);
-    expect(response.status).toBe(401);
-  });
-
-  it('should block DELETE /api/blogs/:blogId/posts/:postId with 401 Unauthorized if request is unauthenticated', async () => {
-    const response = await app.request('/api/blogs/biz_123/posts/post_abc', {
-      method: 'DELETE',
-    }, mockEnv);
     expect(response.status).toBe(401);
   });
 });

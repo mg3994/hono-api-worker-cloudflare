@@ -33,6 +33,7 @@ import { CreateBlogPostUseCase } from '../usecases/createBlogPostUseCase';
 import { UpdateBlogPostUseCase } from '../usecases/updateBlogPostUseCase';
 import { GetBlogPostUseCase } from '../usecases/getBlogPostUseCase';
 import { DeleteBlogPostUseCase } from '../usecases/deleteBlogPostUseCase';
+import { CreateSelfBlogUseCase } from '../usecases/createSelfBlogUseCase';
 
 // Verification Engine & Blogger CRUD Service
 import { IOrderVerificationService } from '../domain/orderVerificationService';
@@ -67,6 +68,7 @@ export interface AppContainer {
   updateBlogPostUseCase: UpdateBlogPostUseCase;
   getBlogPostUseCase: GetBlogPostUseCase;
   deleteBlogPostUseCase: DeleteBlogPostUseCase;
+  createSelfBlogUseCase: CreateSelfBlogUseCase;
 }
 
 /**
@@ -168,6 +170,7 @@ export function createContainer(env: CloudflareBindings): AppContainer {
   const updateBlogPostUseCase = new UpdateBlogPostUseCase(bloggerService);
   const getBlogPostUseCase = new GetBlogPostUseCase(bloggerService);
   const deleteBlogPostUseCase = new DeleteBlogPostUseCase(bloggerService);
+  const createSelfBlogUseCase = new CreateSelfBlogUseCase(bloggerService);
 
   return {
     firebaseRepository,
@@ -192,5 +195,6 @@ export function createContainer(env: CloudflareBindings): AppContainer {
     updateBlogPostUseCase,
     getBlogPostUseCase,
     deleteBlogPostUseCase,
+    createSelfBlogUseCase,
   };
 }

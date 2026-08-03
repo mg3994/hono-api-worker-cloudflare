@@ -1,5 +1,5 @@
 import { Context } from 'hono';
-import { UserContext, StandardResponse, DeviceSyncRequest, SendNotificationRequest, RevokeClaimRequest, CreateOrderRequest, ProcessPaymentRequest, CreateBlogPostRequest, UpdateBlogPostRequest } from '../domain/types';
+import { UserContext, StandardResponse, DeviceSyncRequest, SendNotificationRequest, RevokeClaimRequest, CreateOrderRequest, ProcessPaymentRequest, CreateBlogPostRequest, UpdateBlogPostRequest, CreateBlogRequest } from '../domain/types';
 import { AuthenticationError, PermissionDeniedError } from '../domain/errors';
 import { DeviceSessionRecord } from '../domain/sessionRepository';
 
@@ -303,6 +303,32 @@ export class ApiControllers {
   }
 
   /**
+   * Controller for POST /api/blogs
+   */
+  public static async createSelfBlog(c: Context) {
+    const user = c.get('user') as UserContext | null;
+    if (!user) {
+      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
+    }
+
+    const authHeader = c.req.header('Authorization') || '';
+    let bloggerToken = '';
+    if (authHeader.startsWith('Bearer ')) bloggerToken = authHeader.substring(7).trim();
+    const customHeader = c.req.header('X-Blogger-Access-Token') || '';
+    if (customHeader) bloggerToken = customHeader.trim();
+
+    const payload = c.req.valid('json') as CreateBlogRequest;
+    const container = c.get('container');
+
+    const blog = await container.createSelfBlogUseCase.execute(user, bloggerToken, payload);
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: blog,
+    });
+  }
+
+  /**
    * Controller for POST /api/blogs/:blogId/posts
    */
   public static async createBlogPost(c: Context) {
@@ -316,10 +342,16 @@ export class ApiControllers {
       throw new Error('Blog ID parameter is missing.');
     }
 
+    const authHeader = c.req.header('Authorization') || '';
+    let bloggerToken = '';
+    if (authHeader.startsWith('Bearer ')) bloggerToken = authHeader.substring(7).trim();
+    const customHeader = c.req.header('X-Blogger-Access-Token') || '';
+    if (customHeader) bloggerToken = customHeader.trim();
+
     const payload = c.req.valid('json') as CreateBlogPostRequest;
     const container = c.get('container');
 
-    const post = await container.createBlogPostUseCase.execute(user, blogId, payload);
+    const post = await container.createBlogPostUseCase.execute(user, blogId, bloggerToken, payload);
 
     return c.json<StandardResponse>({
       success: true,
@@ -342,10 +374,16 @@ export class ApiControllers {
       throw new Error('Blog ID or Post ID parameter is missing.');
     }
 
+    const authHeader = c.req.header('Authorization') || '';
+    let bloggerToken = '';
+    if (authHeader.startsWith('Bearer ')) bloggerToken = authHeader.substring(7).trim();
+    const customHeader = c.req.header('X-Blogger-Access-Token') || '';
+    if (customHeader) bloggerToken = customHeader.trim();
+
     const payload = c.req.valid('json') as UpdateBlogPostRequest;
     const container = c.get('container');
 
-    const post = await container.updateBlogPostUseCase.execute(user, blogId, postId, payload);
+    const post = await container.updateBlogPostUseCase.execute(user, blogId, postId, bloggerToken, payload);
 
     return c.json<StandardResponse>({
       success: true,
@@ -368,8 +406,14 @@ export class ApiControllers {
       throw new Error('Blog ID or Post ID parameter is missing.');
     }
 
+    const authHeader = c.req.header('Authorization') || '';
+    let bloggerToken = '';
+    if (authHeader.startsWith('Bearer ')) bloggerToken = authHeader.substring(7).trim();
+    const customHeader = c.req.header('X-Blogger-Access-Token') || '';
+    if (customHeader) bloggerToken = customHeader.trim();
+
     const container = c.get('container');
-    const post = await container.getBlogPostUseCase.execute(user, blogId, postId);
+    const post = await container.getBlogPostUseCase.execute(user, blogId, postId, bloggerToken);
 
     return c.json<StandardResponse>({
       success: true,
@@ -392,8 +436,14 @@ export class ApiControllers {
       throw new Error('Blog ID or Post ID parameter is missing.');
     }
 
+    const authHeader = c.req.header('Authorization') || '';
+    let bloggerToken = '';
+    if (authHeader.startsWith('Bearer ')) bloggerToken = authHeader.substring(7).trim();
+    const customHeader = c.req.header('X-Blogger-Access-Token') || '';
+    if (customHeader) bloggerToken = customHeader.trim();
+
     const container = c.get('container');
-    await container.deleteBlogPostUseCase.execute(user, blogId, postId);
+    await container.deleteBlogPostUseCase.execute(user, blogId, postId, bloggerToken);
 
     return c.json<StandardResponse>({
       success: true,

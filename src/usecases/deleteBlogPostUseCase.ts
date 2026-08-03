@@ -9,7 +9,7 @@ export class DeleteBlogPostUseCase {
     this.bloggerService = bloggerService;
   }
 
-  async execute(caller: UserContext, blogId: string, postId: string): Promise<void> {
+  async execute(caller: UserContext, blogId: string, postId: string, accessToken: string): Promise<void> {
     const isSuperAdmin = caller.isSuperAdmin;
     const isAssociated =
       caller.claims?.o?.includes(blogId) ||
@@ -20,6 +20,6 @@ export class DeleteBlogPostUseCase {
       throw new PermissionDeniedError('Permission denied: You can only manage Blogger posts for blogs you own or manage.');
     }
 
-    await this.bloggerService.deletePost(blogId, postId);
+    await this.bloggerService.deletePost(blogId, postId, accessToken);
   }
 }
