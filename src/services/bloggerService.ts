@@ -239,23 +239,6 @@ export class BloggerService implements IBloggerService {
     return mockPost;
   }
 
-  public async getPost(blogId: string, postId: string, accessToken?: string): Promise<BloggerPost | null> {
-    const result = await this.fetchBlogger<any>(
-      `/blogs/${blogId}/posts/${postId}`,
-      'GET',
-      accessToken
-    );
-
-    if (result) {
-      return this.mapToPost(result);
-    }
-
-    // Fallback mock check
-    const posts = this.mockPosts.get(blogId) || [];
-    const match = posts.find((p) => p.id === postId);
-    return match || null;
-  }
-
   public async updatePost(
     blogId: string,
     postId: string,

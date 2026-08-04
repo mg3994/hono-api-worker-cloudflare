@@ -31,6 +31,7 @@ export class UpdateBlogPostUseCase {
       content: request.content || '',
       labels: request.labels,
       isDraft: request.isDraft,
+      publishDate: request.publishDate,
     });
   }
 }

@@ -4,7 +4,8 @@ import { UpdateBlogPostUseCase } from '../usecases/updateBlogPostUseCase';
 import { GetBlogPostUseCase } from '../usecases/getBlogPostUseCase';
 import { DeleteBlogPostUseCase } from '../usecases/deleteBlogPostUseCase';
 import { CreateSelfBlogUseCase } from '../usecases/createSelfBlogUseCase';
-import { IBloggerService, BloggerPost, Blog } from '../domain/bloggerService';
+import { ListBlogPostsUseCase } from '../usecases/listBlogPostsUseCase';
+import { IBloggerService, BloggerPost, Blog, BloggerPostsResponse } from '../domain/bloggerService';
 import { UserContext } from '../domain/types';
 import { PermissionDeniedError, ValidationError } from '../domain/errors';
 import app from '../index';
@@ -14,6 +15,7 @@ describe('Blogger Use Cases Unit Tests', () => {
   const mockBloggerService = (): IBloggerService => ({
     getSelfBlogs: vi.fn(),
     getBlogById: vi.fn(),
+    getPost: vi.fn(),
     createSelfBlog: vi.fn(),
     listPosts: vi.fn(),
     createPost: vi.fn(),
@@ -21,6 +23,59 @@ describe('Blogger Use Cases Unit Tests', () => {
     deletePost: vi.fn(),
     listComments: vi.fn(),
     createComment: vi.fn(),
+  });
+
+  describe('ListBlogPostsUseCase Unit Tests', () => {
+    it('should retrieve posts matching the pagination and searchQuery constraints', async () => {
+      const service = mockBloggerService();
+      const useCase = new ListBlogPostsUseCase(service);
+
+      const caller: UserContext = {
+        uid: 'user_owner',
+        email: 'owner@example.com',
+        isSuperAdmin: false,
+        claims: { o: ['biz_123'], m: [], s: [] },
+      };
+
+      const mockResponse: BloggerPostsResponse = {
+        posts: [
+          { id: 'post_1', blog: { id: 'biz_123' }, title: 'P1', content: 'C1', status: 'LIVE' },
+        ],
+        nextPageToken: '10',
+      };
+      vi.spyOn(service, 'listPosts').mockResolvedValue(mockResponse);
+
+      const result = await useCase.execute(caller, 'biz_123', {
+        accessToken: 'oauth_token',
+        searchQuery: 'electronics',
+        maxResults: 5,
+        pageToken: '0',
+      });
+
+      expect(result).toEqual(mockResponse);
+      expect(service.listPosts).toHaveBeenCalledWith('biz_123', {
+        accessToken: 'oauth_token',
+        searchQuery: 'electronics',
+        maxResults: 5,
+        pageToken: '0',
+      });
+    });
+
+    it('should throw PermissionDeniedError if caller does not own or manage the blogId', async () => {
+      const service = mockBloggerService();
+      const useCase = new ListBlogPostsUseCase(service);
+
+      const caller: UserContext = {
+        uid: 'intruder',
+        email: 'intruder@test.com',
+        isSuperAdmin: false,
+        claims: { o: [], m: [], s: [] },
+      };
+
+      await expect(
+        useCase.execute(caller, 'biz_123', {})
+      ).rejects.toThrow(PermissionDeniedError);
+    });
   });
 
   describe('CreateBlogPostUseCase', () => {
@@ -56,6 +111,7 @@ describe('Blogger Use Cases Unit Tests', () => {
         content: 'Content',
         labels: undefined,
         isDraft: false,
+        publishDate: undefined,
       });
     });
 
@@ -86,6 +142,46 @@ describe('Blogger Use Cases Unit Tests', () => {
       });
 
       expect(result).toEqual(mockPost);
+    });
+
+    it('should successfully schedule a blog post if publishDate is specified', async () => {
+      const service = mockBloggerService();
+      const useCase = new CreateBlogPostUseCase(service);
+
+      const caller: UserContext = {
+        uid: 'user_owner',
+        email: 'owner@example.com',
+        isSuperAdmin: false,
+        claims: { o: ['biz_123'], m: [], s: [] },
+      };
+
+      const futureDate = '2026-08-04T12:00:00Z';
+      const mockPost: BloggerPost = {
+        id: 'post_scheduled',
+        blog: { id: 'biz_123' },
+        title: 'Scheduled Title',
+        content: 'Content',
+        status: 'SCHEDULED',
+        published: futureDate,
+      };
+      vi.spyOn(service, 'createPost').mockResolvedValue(mockPost);
+
+      const result = await useCase.execute(caller, 'biz_123', 'oauth_token', {
+        title: 'Scheduled Title',
+        content: 'Content',
+        isDraft: false,
+        publishDate: futureDate,
+      });
+
+      expect(result.status).toBe('SCHEDULED');
+      expect(result.published).toBe(futureDate);
+      expect(service.createPost).toHaveBeenCalledWith('biz_123', 'oauth_token', {
+        title: 'Scheduled Title',
+        content: 'Content',
+        labels: undefined,
+        isDraft: false,
+        publishDate: futureDate,
+      });
     });
 
     it('should block non-associated owners or managers with PermissionDeniedError', async () => {
@@ -139,7 +235,27 @@ describe('Blogger Use Cases Unit Tests', () => {
         content: '',
         labels: undefined,
         isDraft: undefined,
+        publishDate: undefined,
       });
+    });
+  });
+
+  describe('GetBlogPostUseCase & DeleteBlogPostUseCase', () => {
+    it('should assert associated manager can delete a blog post', async () => {
+      const service = mockBloggerService();
+      const useCase = new DeleteBlogPostUseCase(service);
+
+      const caller: UserContext = {
+        uid: 'user_manager',
+        email: 'manager@example.com',
+        isSuperAdmin: false,
+        claims: { o: [], m: ['biz_123'], s: [] },
+      };
+
+      vi.spyOn(service, 'deletePost').mockResolvedValue();
+
+      await useCase.execute(caller, 'biz_123', 'post_abc', 'oauth_token');
+      expect(service.deletePost).toHaveBeenCalledWith('biz_123', 'post_abc', 'oauth_token');
     });
   });
 

@@ -30,6 +30,7 @@ export class CreateBlogPostUseCase {
       content: request.content,
       labels: request.labels,
       isDraft: request.isDraft,
+      publishDate: request.publishDate,
     });
   }
 }

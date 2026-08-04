@@ -16,7 +16,6 @@ export class ApiControllers {
     const container = c.get('container');
     const latestClaims = await container.getUserClaimsUseCase.execute(user.email);
 
-    // Compare token claims vs latest claims to determine if the client needs to force-refresh their ID token
     const needsRefresh = JSON.stringify(user.claims) !== JSON.stringify(latestClaims);
 
     const responseData = {
@@ -95,7 +94,6 @@ export class ApiControllers {
       throw new Error('Business ID parameter is missing.');
     }
 
-    // Security Gate: Super Admin or Associated User
     const isSuperAdmin = user.isSuperAdmin;
     const isAssociated =
       user.claims.o?.includes(businessId) ||
@@ -140,15 +138,13 @@ export class ApiControllers {
         throw new Error('Missing deviceToken for device sync.');
       }
 
-      // Check if this is an authenticated user session vs a guest session
       let uid = 'guest';
       if (idToken && idToken !== 'guest_session') {
         try {
-          // Verify ID token locally on the edge!
           const userContext = await container.tokenService.verifyToken(idToken);
           uid = userContext.uid;
         } catch (err: any) {
-          // Graceful fallback to guest or throw warning depending on client auth requirements
+          // Fallback
         }
       }
 
@@ -188,7 +184,6 @@ export class ApiControllers {
     const payload = c.req.valid('json') as SendNotificationRequest;
     const { targetUid, businessId, title, body, imageUrl, deepLinkUrl, customData } = payload;
 
-    // Access Check Strategy
     const isSuperAdmin = user.isSuperAdmin;
     let isAuthorizedBusinessSender = false;
 
@@ -325,6 +320,48 @@ export class ApiControllers {
     return c.json<StandardResponse>({
       success: true,
       data: blog,
+    });
+  }
+
+  /**
+   * Controller for GET /api/blogs/:blogId/posts
+   */
+  public static async listBlogPosts(c: Context) {
+    const user = c.get('user') as UserContext | null;
+    if (!user) {
+      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
+    }
+
+    const blogId = c.req.param('blogId');
+    if (!blogId) {
+      throw new Error('Blog ID parameter is missing.');
+    }
+
+    const authHeader = c.req.header('Authorization') || '';
+    let bloggerToken = '';
+    if (authHeader.startsWith('Bearer ')) bloggerToken = authHeader.substring(7).trim();
+    const customHeader = c.req.header('X-Blogger-Access-Token') || '';
+    if (customHeader) bloggerToken = customHeader.trim();
+
+    const searchQuery = c.req.query('searchQuery') || '';
+    const status = c.req.query('status') || '';
+    const maxResultsStr = c.req.query('maxResults') || '10';
+    const pageToken = c.req.query('pageToken') || '';
+
+    const maxResults = parseInt(maxResultsStr, 10) || 10;
+
+    const container = c.get('container');
+    const response = await container.listBlogPostsUseCase.execute(user, blogId, {
+      accessToken: bloggerToken,
+      searchQuery,
+      status,
+      maxResults,
+      pageToken,
+    });
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: response,
     });
   }
 

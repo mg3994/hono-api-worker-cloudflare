@@ -69,6 +69,8 @@ api.post(
   ApiControllers.createSelfBlog
 );
 
+api.get('/blogs/:blogId/posts', ApiControllers.listBlogPosts);
+
 api.post(
   '/blogs/:blogId/posts',
   sValidator('json', CreateBlogPostRequestSchema, (result, c) => {

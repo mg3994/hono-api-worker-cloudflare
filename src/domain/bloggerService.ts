@@ -42,7 +42,6 @@ export interface BlogComment {
 export interface IBloggerService {
   getSelfBlogs(accessToken: string): Promise<Blog[]>;
   getBlogById(blogId: string, accessToken?: string): Promise<Blog>;
-  getPost(blogId: string, postId: string, accessToken?: string): Promise<BloggerPost | null>;
   createSelfBlog(accessToken: string, name: string, description: string): Promise<Blog>;
   listPosts(
     blogId: string,
@@ -60,6 +59,7 @@ export interface IBloggerService {
       content: string;
       labels?: string[];
       isDraft?: boolean;
+      publishDate?: string;
     }
   ): Promise<BloggerPost>;
   updatePost(
@@ -71,6 +71,7 @@ export interface IBloggerService {
       content: string;
       labels?: string[];
       isDraft?: boolean;
+      publishDate?: string;
     }
   ): Promise<BloggerPost>;
   deletePost(blogId: string, postId: string, accessToken: string): Promise<void>;

@@ -65,6 +65,7 @@ export const CreateBlogPostRequestSchema = z.object({
   content: z.string().min(1, { message: 'Content cannot be empty' }),
   labels: z.array(z.string()).optional(),
   isDraft: z.boolean().optional().default(false),
+  publishDate: z.string().datetime({ message: 'Invalid RFC 3339 datetime format' }).optional(),
 });
 
 export type CreateBlogPostRequest = z.infer<typeof CreateBlogPostRequestSchema>;
@@ -74,6 +75,7 @@ export const UpdateBlogPostRequestSchema = z.object({
   content: z.string().optional(),
   labels: z.array(z.string()).optional(),
   isDraft: z.boolean().optional(),
+  publishDate: z.string().datetime({ message: 'Invalid RFC 3339 datetime format' }).optional(),
 });
 
 export type UpdateBlogPostRequest = z.infer<typeof UpdateBlogPostRequestSchema>;
