@@ -13,8 +13,8 @@ export class UpdateBlogPostUseCase {
     caller: UserContext,
     blogId: string,
     postId: string,
-    accessToken: string,
-    request: UpdateBlogPostRequest
+    request: UpdateBlogPostRequest,
+    accessToken?: string
   ): Promise<BloggerPost> {
     const isSuperAdmin = caller.isSuperAdmin;
     const isAssociated =
@@ -26,12 +26,11 @@ export class UpdateBlogPostUseCase {
       throw new PermissionDeniedError('Permission denied: You can only manage Blogger posts for blogs you own or manage.');
     }
 
-    return this.bloggerService.updatePost(blogId, postId, accessToken, {
+    return this.bloggerService.updatePost(blogId, postId, accessToken || '', {
       title: request.title || '',
       content: request.content || '',
       labels: request.labels,
       isDraft: request.isDraft,
-      publishDate: request.publishDate,
     });
   }
 }

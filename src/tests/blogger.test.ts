@@ -3,9 +3,7 @@ import { CreateBlogPostUseCase } from '../usecases/createBlogPostUseCase';
 import { UpdateBlogPostUseCase } from '../usecases/updateBlogPostUseCase';
 import { GetBlogPostUseCase } from '../usecases/getBlogPostUseCase';
 import { DeleteBlogPostUseCase } from '../usecases/deleteBlogPostUseCase';
-import { CreateSelfBlogUseCase } from '../usecases/createSelfBlogUseCase';
-import { ListBlogPostsUseCase } from '../usecases/listBlogPostsUseCase';
-import { IBloggerService, BloggerPost, Blog, BloggerPostsResponse } from '../domain/bloggerService';
+import { IBloggerService, BloggerPost } from '../domain/bloggerService';
 import { UserContext } from '../domain/types';
 import { PermissionDeniedError, ValidationError } from '../domain/errors';
 import app from '../index';
@@ -13,69 +11,10 @@ import { mockEnv } from './testUtils';
 
 describe('Blogger Use Cases Unit Tests', () => {
   const mockBloggerService = (): IBloggerService => ({
-    getSelfBlogs: vi.fn(),
-    getBlogById: vi.fn(),
-    getPost: vi.fn(),
-    createSelfBlog: vi.fn(),
-    listPosts: vi.fn(),
     createPost: vi.fn(),
     updatePost: vi.fn(),
+    getPost: vi.fn(),
     deletePost: vi.fn(),
-    listComments: vi.fn(),
-    createComment: vi.fn(),
-  });
-
-  describe('ListBlogPostsUseCase Unit Tests', () => {
-    it('should retrieve posts matching the pagination and searchQuery constraints', async () => {
-      const service = mockBloggerService();
-      const useCase = new ListBlogPostsUseCase(service);
-
-      const caller: UserContext = {
-        uid: 'user_owner',
-        email: 'owner@example.com',
-        isSuperAdmin: false,
-        claims: { o: ['biz_123'], m: [], s: [] },
-      };
-
-      const mockResponse: BloggerPostsResponse = {
-        posts: [
-          { id: 'post_1', blog: { id: 'biz_123' }, title: 'P1', content: 'C1', status: 'LIVE' },
-        ],
-        nextPageToken: '10',
-      };
-      vi.spyOn(service, 'listPosts').mockResolvedValue(mockResponse);
-
-      const result = await useCase.execute(caller, 'biz_123', {
-        accessToken: 'oauth_token',
-        searchQuery: 'electronics',
-        maxResults: 5,
-        pageToken: '0',
-      });
-
-      expect(result).toEqual(mockResponse);
-      expect(service.listPosts).toHaveBeenCalledWith('biz_123', {
-        accessToken: 'oauth_token',
-        searchQuery: 'electronics',
-        maxResults: 5,
-        pageToken: '0',
-      });
-    });
-
-    it('should throw PermissionDeniedError if caller does not own or manage the blogId', async () => {
-      const service = mockBloggerService();
-      const useCase = new ListBlogPostsUseCase(service);
-
-      const caller: UserContext = {
-        uid: 'intruder',
-        email: 'intruder@test.com',
-        isSuperAdmin: false,
-        claims: { o: [], m: [], s: [] },
-      };
-
-      await expect(
-        useCase.execute(caller, 'biz_123', {})
-      ).rejects.toThrow(PermissionDeniedError);
-    });
   });
 
   describe('CreateBlogPostUseCase', () => {
@@ -99,19 +38,18 @@ describe('Blogger Use Cases Unit Tests', () => {
       };
       vi.spyOn(service, 'createPost').mockResolvedValue(mockPost);
 
-      const result = await useCase.execute(caller, 'biz_123', 'oauth_token', {
+      const result = await useCase.execute(caller, 'biz_123', {
         title: 'Title',
         content: 'Content',
         isDraft: false,
       });
 
       expect(result).toEqual(mockPost);
-      expect(service.createPost).toHaveBeenCalledWith('biz_123', 'oauth_token', {
+      expect(service.createPost).toHaveBeenCalledWith('biz_123', '', {
         title: 'Title',
         content: 'Content',
         labels: undefined,
         isDraft: false,
-        publishDate: undefined,
       });
     });
 
@@ -135,53 +73,13 @@ describe('Blogger Use Cases Unit Tests', () => {
       };
       vi.spyOn(service, 'createPost').mockResolvedValue(mockPost);
 
-      const result = await useCase.execute(caller, 'any_blog', 'oauth_token', {
+      const result = await useCase.execute(caller, 'any_blog', {
         title: 'Admin Title',
         content: 'Content',
         isDraft: true,
       });
 
       expect(result).toEqual(mockPost);
-    });
-
-    it('should successfully schedule a blog post if publishDate is specified', async () => {
-      const service = mockBloggerService();
-      const useCase = new CreateBlogPostUseCase(service);
-
-      const caller: UserContext = {
-        uid: 'user_owner',
-        email: 'owner@example.com',
-        isSuperAdmin: false,
-        claims: { o: ['biz_123'], m: [], s: [] },
-      };
-
-      const futureDate = '2026-08-04T12:00:00Z';
-      const mockPost: BloggerPost = {
-        id: 'post_scheduled',
-        blog: { id: 'biz_123' },
-        title: 'Scheduled Title',
-        content: 'Content',
-        status: 'SCHEDULED',
-        published: futureDate,
-      };
-      vi.spyOn(service, 'createPost').mockResolvedValue(mockPost);
-
-      const result = await useCase.execute(caller, 'biz_123', 'oauth_token', {
-        title: 'Scheduled Title',
-        content: 'Content',
-        isDraft: false,
-        publishDate: futureDate,
-      });
-
-      expect(result.status).toBe('SCHEDULED');
-      expect(result.published).toBe(futureDate);
-      expect(service.createPost).toHaveBeenCalledWith('biz_123', 'oauth_token', {
-        title: 'Scheduled Title',
-        content: 'Content',
-        labels: undefined,
-        isDraft: false,
-        publishDate: futureDate,
-      });
     });
 
     it('should block non-associated owners or managers with PermissionDeniedError', async () => {
@@ -196,7 +94,7 @@ describe('Blogger Use Cases Unit Tests', () => {
       };
 
       await expect(
-        useCase.execute(caller, 'biz_123', 'oauth_token', {
+        useCase.execute(caller, 'biz_123', {
           title: 'Title',
           content: 'Content',
         })
@@ -225,17 +123,16 @@ describe('Blogger Use Cases Unit Tests', () => {
       };
       vi.spyOn(service, 'updatePost').mockResolvedValue(mockPost);
 
-      const result = await useCase.execute(caller, 'biz_123', 'post_abc', 'oauth_token', {
+      const result = await useCase.execute(caller, 'biz_123', 'post_abc', {
         title: 'New Title',
       });
 
       expect(result).toEqual(mockPost);
-      expect(service.updatePost).toHaveBeenCalledWith('biz_123', 'post_abc', 'oauth_token', {
+      expect(service.updatePost).toHaveBeenCalledWith('biz_123', 'post_abc', '', {
         title: 'New Title',
         content: '',
         labels: undefined,
         isDraft: undefined,
-        publishDate: undefined,
       });
     });
   });
@@ -254,81 +151,13 @@ describe('Blogger Use Cases Unit Tests', () => {
 
       vi.spyOn(service, 'deletePost').mockResolvedValue();
 
-      await useCase.execute(caller, 'biz_123', 'post_abc', 'oauth_token');
-      expect(service.deletePost).toHaveBeenCalledWith('biz_123', 'post_abc', 'oauth_token');
-    });
-  });
-
-  describe('CreateSelfBlogUseCase Unit Tests', () => {
-    it('should successfully create self blog if caller is Owner or Manager', async () => {
-      const service = mockBloggerService();
-      const useCase = new CreateSelfBlogUseCase(service);
-
-      const caller: UserContext = {
-        uid: 'user_owner',
-        email: 'owner@example.com',
-        isSuperAdmin: false,
-        claims: { o: ['any_biz'], m: [], s: [] },
-      };
-
-      const mockBlog: Blog = {
-        id: 'blog_123',
-        name: 'New Blog Name',
-        description: 'New Description',
-        url: 'https://newblog.blogspot.com',
-        published: '',
-        updated: '',
-      };
-      vi.spyOn(service, 'createSelfBlog').mockResolvedValue(mockBlog);
-
-      const result = await useCase.execute(caller, 'oauth_token', {
-        name: 'New Blog Name',
-        description: 'New Description',
-      });
-
-      expect(result).toEqual(mockBlog);
-      expect(service.createSelfBlog).toHaveBeenCalledWith('oauth_token', 'New Blog Name', 'New Description');
-    });
-
-    it('should deny standard Business Staff from creating a self-blog', async () => {
-      const service = mockBloggerService();
-      const useCase = new CreateSelfBlogUseCase(service);
-
-      const caller: UserContext = {
-        uid: 'staff',
-        email: 'staff@example.com',
-        isSuperAdmin: false,
-        claims: { o: [], m: [], s: ['any_biz'] }, // only has staff claims
-      };
-
-      await expect(
-        useCase.execute(caller, 'oauth_token', {
-          name: 'Staff Blog',
-          description: 'Desc',
-        })
-      ).rejects.toThrow(PermissionDeniedError);
+      await useCase.execute(caller, 'biz_123', 'post_abc');
+      expect(service.deletePost).toHaveBeenCalledWith('biz_123', 'post_abc', '');
     });
   });
 });
 
 describe('Blogger Hono Routes Integration Tests', () => {
-  it('should block POST /api/blogs with 401 Unauthorized if request is unauthenticated', async () => {
-    const payload = {
-      name: 'New Blog',
-      description: 'A new blog description',
-    };
-
-    const response = await app.request('/api/blogs', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    }, mockEnv);
-
-    expect(response.status).toBe(401);
-  });
-
   it('should block POST /api/blogs/:blogId/posts with 401 Unauthorized if request is unauthenticated', async () => {
     const payload = {
       title: 'Title',
@@ -343,6 +172,34 @@ describe('Blogger Hono Routes Integration Tests', () => {
       body: JSON.stringify(payload),
     }, mockEnv);
 
+    expect(response.status).toBe(401);
+  });
+
+  it('should block PUT /api/blogs/:blogId/posts/:postId with 401 Unauthorized if request is unauthenticated', async () => {
+    const payload = {
+      title: 'New Title',
+    };
+
+    const response = await app.request('/api/blogs/biz_123/posts/post_abc', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }, mockEnv);
+
+    expect(response.status).toBe(401);
+  });
+
+  it('should block GET /api/blogs/:blogId/posts/:postId with 401 Unauthorized if request is unauthenticated', async () => {
+    const response = await app.request('/api/blogs/biz_123/posts/post_abc', undefined, mockEnv);
+    expect(response.status).toBe(401);
+  });
+
+  it('should block DELETE /api/blogs/:blogId/posts/:postId with 401 Unauthorized if request is unauthenticated', async () => {
+    const response = await app.request('/api/blogs/biz_123/posts/post_abc', {
+      method: 'DELETE',
+    }, mockEnv);
     expect(response.status).toBe(401);
   });
 });

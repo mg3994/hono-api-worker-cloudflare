@@ -43,6 +43,43 @@ export class ProcessPaymentUseCase {
       throw new ValidationError(`Order with ID "${orderId}" cannot be paid because its current status is "${order.status}".`);
     }
 
+    // Extract rich transaction identifiers
+    let gatewayReferenceId: string | undefined = undefined;
+    let bankReferenceId: string | undefined = undefined;
+    let networkTransactionId: string | undefined = undefined;
+
+    // Google Pay Parsing (Tez UPI / Web Pay)
+    if (method === 'google_pay' && request.googlePayPayload) {
+      const gpay = request.googlePayPayload;
+      const tokenStr = gpay.paymentMethodData?.tokenizationData?.token;
+      if (tokenStr) {
+        try {
+          const parsed = JSON.parse(tokenStr);
+          if (parsed && parsed.tezResponse) {
+            gatewayReferenceId = parsed.tezResponse.ApprovalRefNo;
+            bankReferenceId = parsed.tezResponse.ApprovalRefNo;
+            networkTransactionId = parsed.tezResponse.txnId;
+          }
+        } catch (err) {
+          // Graceful ignore
+        }
+      }
+    }
+
+    // Apple Pay Parsing
+    if (method === 'apple_pay' && request.applePayPayload) {
+      const apay = request.applePayPayload;
+      networkTransactionId = apay.token?.transactionIdentifier;
+    }
+
+    // Gateway Response Parsing (RRN/ARN)
+    if (request.gatewayResponse) {
+      const gw = request.gatewayResponse;
+      gatewayReferenceId = gatewayReferenceId || gw.id || gw.authorization_code;
+      bankReferenceId = bankReferenceId || gw.receipt_number;
+      networkTransactionId = networkTransactionId || gw.network_transaction_id;
+    }
+
     // Create Payment log
     const payment: Payment = {
       id: `pay_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`,
@@ -51,13 +88,25 @@ export class ProcessPaymentUseCase {
       method,
       status: 'succeeded',
       createdAt: Date.now(),
+      gatewayReferenceId,
+      bankReferenceId,
+      networkTransactionId,
     };
 
     // Save payment log
     await this.paymentRepo.createPayment(payment);
 
-    // Update Order status to completed
-    await this.orderRepo.updateOrderStatus(orderId, 'completed');
+    // Dynamic Multi-Payment Transitions: Fetch existing payments
+    const existingPayments = await this.paymentRepo.getPaymentsByOrder(orderId) || [];
+    const totalPaid = existingPayments
+      .filter((p) => p.status === 'succeeded' || p.status === 'completed')
+      .reduce((sum, p) => sum + p.amount, 0) + amount;
+
+    if (totalPaid >= order.amount) {
+      await this.orderRepo.updateOrderStatus(orderId, 'completed');
+    } else {
+      await this.orderRepo.updateOrderStatus(orderId, 'partially_paid');
+    }
 
     return payment;
   }

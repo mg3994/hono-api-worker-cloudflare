@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { CreateOrderUseCase } from '../usecases/createOrderUseCase';
 import { GetOrdersUseCase } from '../usecases/getOrdersUseCase';
 import { ProcessPaymentUseCase } from '../usecases/processPaymentUseCase';
+import { RefundPaymentUseCase } from '../usecases/refundPaymentUseCase';
 import { IOrderRepository, Order } from '../domain/orderRepository';
 import { IPaymentRepository, Payment } from '../domain/paymentRepository';
 import { UserContext } from '../domain/types';
@@ -21,6 +22,8 @@ describe('Orders & Payments Use Cases', () => {
   const mockPaymentRepo = (): IPaymentRepository => ({
     createPayment: vi.fn(),
     getPaymentsByOrder: vi.fn(),
+    getPaymentById: vi.fn(),
+    updatePaymentStatus: vi.fn(),
   });
 
   describe('CreateOrderUseCase', () => {
@@ -216,6 +219,155 @@ describe('Orders & Payments Use Cases', () => {
           method: 'card',
         })
       ).rejects.toThrow(ValidationError);
+    });
+
+    it('should successfully process Google Pay UPI / Tez payment with transaction identifiers', async () => {
+      const orderRepo = mockOrderRepo();
+      const paymentRepo = mockPaymentRepo();
+      const useCase = new ProcessPaymentUseCase(orderRepo, paymentRepo);
+
+      const mockOrder: Order = {
+        id: 'ord_gp1',
+        uid: 'user_1',
+        businessId: 'biz_123',
+        amount: 200,
+        status: 'pending',
+        createdAt: Date.now(),
+      };
+
+      vi.spyOn(orderRepo, 'getOrderById').mockResolvedValue(mockOrder);
+      vi.spyOn(paymentRepo, 'createPayment').mockResolvedValue();
+      vi.spyOn(orderRepo, 'updateOrderStatus').mockResolvedValue();
+
+      const caller: UserContext = {
+        uid: 'user_owner',
+        email: 'owner@example.com',
+        isSuperAdmin: false,
+        claims: { o: ['biz_123'], m: [], s: [] },
+      };
+
+      const result = await useCase.execute(caller, {
+        orderId: 'ord_gp1',
+        amount: 200,
+        method: 'google_pay',
+        googlePayPayload: {
+          paymentMethodData: {
+            tokenizationData: {
+              token: JSON.stringify({
+                tezResponse: {
+                  ApprovalRefNo: 'REF1234567890',
+                  txnId: 'TXN-998877',
+                  responseCode: '00',
+                },
+              }),
+            },
+          },
+        },
+      });
+
+      expect(result.status).toBe('succeeded');
+      expect(result.method).toBe('google_pay');
+      expect(result.gatewayReferenceId).toBe('REF1234567890');
+      expect(result.bankReferenceId).toBe('REF1234567890');
+      expect(result.networkTransactionId).toBe('TXN-998877');
+    });
+  });
+
+  describe('RefundPaymentUseCase', () => {
+    it('should successfully execute a partial refund and transition order to partially_refunded', async () => {
+      const orderRepo = mockOrderRepo();
+      const paymentRepo = mockPaymentRepo();
+      const useCase = new RefundPaymentUseCase(orderRepo, paymentRepo);
+
+      const mockOrder: Order = {
+        id: 'ord_refund',
+        uid: 'user_1',
+        businessId: 'biz_123',
+        amount: 1000,
+        status: 'completed',
+        createdAt: Date.now(),
+      };
+
+      const mockPayment: Payment = {
+        id: 'pay_refund',
+        orderId: 'ord_refund',
+        amount: 1000,
+        method: 'card',
+        status: 'succeeded',
+        createdAt: Date.now(),
+      };
+
+      vi.spyOn(orderRepo, 'getOrderById').mockResolvedValue(mockOrder);
+      vi.spyOn(paymentRepo, 'getPaymentById').mockResolvedValue(mockPayment);
+      vi.spyOn(paymentRepo, 'getPaymentsByOrder').mockResolvedValue([mockPayment]);
+      vi.spyOn(paymentRepo, 'updatePaymentStatus').mockResolvedValue();
+      vi.spyOn(orderRepo, 'updateOrderStatus').mockResolvedValue();
+
+      const caller: UserContext = {
+        uid: 'user_owner',
+        email: 'owner@example.com',
+        isSuperAdmin: false,
+        claims: { o: ['biz_123'], m: [], s: [] },
+      };
+
+      const result = await useCase.execute(caller, {
+        orderId: 'ord_refund',
+        paymentId: 'pay_refund',
+        amount: 400,
+        reason: 'Faulty items',
+      });
+
+      expect(result.status).toBe('partially_refunded');
+      expect(paymentRepo.updatePaymentStatus).toHaveBeenCalledWith('pay_refund', 'partially_refunded');
+      expect(orderRepo.updateOrderStatus).toHaveBeenCalledWith('ord_refund', 'partially_refunded');
+    });
+
+    it('should successfully execute a full refund and transition order to fully_refunded', async () => {
+      const orderRepo = mockOrderRepo();
+      const paymentRepo = mockPaymentRepo();
+      const useCase = new RefundPaymentUseCase(orderRepo, paymentRepo);
+
+      const mockOrder: Order = {
+        id: 'ord_refund_full',
+        uid: 'user_1',
+        businessId: 'biz_123',
+        amount: 1000,
+        status: 'completed',
+        createdAt: Date.now(),
+      };
+
+      const mockPayment: Payment = {
+        id: 'pay_refund_full',
+        orderId: 'ord_refund_full',
+        amount: 1000,
+        method: 'card',
+        status: 'succeeded',
+        createdAt: Date.now(),
+      };
+
+      vi.spyOn(orderRepo, 'getOrderById').mockResolvedValue(mockOrder);
+      vi.spyOn(paymentRepo, 'getPaymentById').mockResolvedValue(mockPayment);
+      vi.spyOn(paymentRepo, 'getPaymentsByOrder').mockResolvedValue([mockPayment]);
+      vi.spyOn(paymentRepo, 'updatePaymentStatus').mockResolvedValue();
+      vi.spyOn(orderRepo, 'updateOrderStatus').mockResolvedValue();
+
+      const caller: UserContext = {
+        uid: 'user_owner',
+        email: 'owner@example.com',
+        isSuperAdmin: false,
+        claims: { o: ['biz_123'], m: [], s: [] },
+      };
+
+      const result = await useCase.execute(caller, {
+        orderId: 'ord_refund_full',
+        paymentId: 'pay_refund_full',
+        amount: 1000,
+        reason: 'Customer returned all items',
+      });
+
+      expect(result.status).toBe('refunded');
+      expect(paymentRepo.updatePaymentStatus).toHaveBeenCalledWith('pay_refund_full', 'refunded');
+      expect(orderRepo.updateOrderStatus).toHaveBeenCalledWith('ord_refund_full', 'fully_refunded');
     });
   });
 });

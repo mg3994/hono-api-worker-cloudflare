@@ -29,18 +29,16 @@ import { CreateOrderUseCase } from '../usecases/createOrderUseCase';
 import { GetOrdersUseCase } from '../usecases/getOrdersUseCase';
 import { ProcessPaymentUseCase } from '../usecases/processPaymentUseCase';
 import { GetUserByPhoneUseCase } from '../usecases/getUserByPhoneUseCase';
+import { CreateBlogPostUseCase } from '../usecases/createBlogPostUseCase';
+import { UpdateBlogPostUseCase } from '../usecases/updateBlogPostUseCase';
+import { GetBlogPostUseCase } from '../usecases/getBlogPostUseCase';
+import { DeleteBlogPostUseCase } from '../usecases/deleteBlogPostUseCase';
 
 // Verification Engine & Blogger CRUD Service
 import { IOrderVerificationService } from '../domain/orderVerificationService';
 import { OrderVerificationService } from '../services/orderVerificationService';
 import { IBloggerService } from '../domain/bloggerService';
 import { BloggerService } from '../services/bloggerService';
-import { CreateBlogPostUseCase } from '../usecases/createBlogPostUseCase';
-import { UpdateBlogPostUseCase } from '../usecases/updateBlogPostUseCase';
-import { GetBlogPostUseCase } from '../usecases/getBlogPostUseCase';
-import { DeleteBlogPostUseCase } from '../usecases/deleteBlogPostUseCase';
-import { CreateSelfBlogUseCase } from '../usecases/createSelfBlogUseCase';
-import { ListBlogPostsUseCase } from '../usecases/listBlogPostsUseCase';
 
 // Messaging Imports
 import { IMessagingService } from '../domain/messagingService';
@@ -69,8 +67,6 @@ export interface AppContainer {
   updateBlogPostUseCase: UpdateBlogPostUseCase;
   getBlogPostUseCase: GetBlogPostUseCase;
   deleteBlogPostUseCase: DeleteBlogPostUseCase;
-  createSelfBlogUseCase: CreateSelfBlogUseCase;
-  listBlogPostsUseCase: ListBlogPostsUseCase;
 }
 
 /**
@@ -103,9 +99,11 @@ class MockD1Database implements D1Database {
 /**
  * Factory to create and wire up all Clean Architecture layers (SOLID dependency injection).
  */
-export function createContainer(env?: CloudflareBindings): AppContainer {
-  const safeEnv = env || ({} as any);
-  const serviceAccountStr = safeEnv.FIREBASE_SERVICE_ACCOUNT_JSON || '';
+export function createContainer(env: CloudflareBindings): AppContainer {
+  const serviceAccountStr = env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (!serviceAccountStr) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is not configured in the environment.');
+  }
 
   // Handle local test runs gracefully
   let serviceAccount = {
@@ -123,23 +121,23 @@ export function createContainer(env?: CloudflareBindings): AppContainer {
   }
 
   // Read MAX_ENTITIES_LIMIT dynamically from Cloudflare bindings (default to 20)
-  const maxLimitStr = safeEnv.MAX_ENTITIES_LIMIT || '20';
+  const maxLimitStr = env.MAX_ENTITIES_LIMIT || '20';
   const maxLimit = parseInt(maxLimitStr, 10) || 20;
 
   const projectId = serviceAccount.project_id;
-  const superAdminsStr = safeEnv.SUPER_ADMINS || '';
+  const superAdminsStr = env.SUPER_ADMINS || '';
 
   // Services - Injecting dependencies cleanly
   const jwtSigner = new JwtSigner(serviceAccount);
-  const googleAuthService = new GoogleAuthService(serviceAccount, jwtSigner, safeEnv.GOOGLE_OAUTH_TOKEN_KV);
+  const googleAuthService = new GoogleAuthService(serviceAccount, jwtSigner, env.GOOGLE_OAUTH_TOKEN_KV);
   const claimsService = new ClaimsService();
   const logger = new ConsoleLogger();
 
-  const tokenVerifier = new FirebaseTokenVerifier(safeEnv.FIREBASE_PUBLIC_KEY_KV, logger);
+  const tokenVerifier = new FirebaseTokenVerifier(env.FIREBASE_PUBLIC_KEY_KV, logger);
   const tokenService = new TokenService(tokenVerifier, projectId, superAdminsStr, logger);
 
   // Instantiating D1 Database instances securely
-  const d1Db = safeEnv.DB || new MockD1Database();
+  const d1Db = env.DB || new MockD1Database();
   const companyRepository = new CompanyRepository(d1Db);
   const sessionRepository = new SessionRepository(d1Db);
 
@@ -163,15 +161,13 @@ export function createContainer(env?: CloudflareBindings): AppContainer {
   const getOrdersUseCase = new GetOrdersUseCase(orderRepository);
   const processPaymentUseCase = new ProcessPaymentUseCase(orderRepository, paymentRepository);
   const getUserByPhoneUseCase = new GetUserByPhoneUseCase(firebaseRepository);
-  const orderVerificationService = new OrderVerificationService(safeEnv.BLOGGER_API_KEY || 'blogger_mock_api_key');
-  const bloggerService = new BloggerService(safeEnv.BLOGGER_API_KEY || 'blogger_mock_api_key');
+  const orderVerificationService = new OrderVerificationService(env.BLOGGER_API_KEY || 'blogger_mock_api_key');
+  const bloggerService = new BloggerService(env.BLOGGER_API_KEY || 'blogger_mock_api_key');
 
   const createBlogPostUseCase = new CreateBlogPostUseCase(bloggerService);
   const updateBlogPostUseCase = new UpdateBlogPostUseCase(bloggerService);
   const getBlogPostUseCase = new GetBlogPostUseCase(bloggerService);
   const deleteBlogPostUseCase = new DeleteBlogPostUseCase(bloggerService);
-  const createSelfBlogUseCase = new CreateSelfBlogUseCase(bloggerService);
-  const listBlogPostsUseCase = new ListBlogPostsUseCase(bloggerService);
 
   return {
     firebaseRepository,
@@ -196,7 +192,5 @@ export function createContainer(env?: CloudflareBindings): AppContainer {
     updateBlogPostUseCase,
     getBlogPostUseCase,
     deleteBlogPostUseCase,
-    createSelfBlogUseCase,
-    listBlogPostsUseCase,
   };
 }

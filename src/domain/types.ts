@@ -55,7 +55,40 @@ export type CreateOrderRequest = z.infer<typeof CreateOrderRequestSchema>;
 export const ProcessPaymentRequestSchema = z.object({
   orderId: z.string().min(1, { message: 'orderId cannot be empty' }),
   amount: z.number().positive({ message: 'Amount must be a positive number' }),
-  method: z.enum(['card', 'bank', 'crypto'], { message: "Method must be 'card', 'bank', or 'crypto'" }),
+  method: z.enum(['card', 'bank', 'crypto', 'google_pay', 'apple_pay'], { message: "Method must be 'card', 'bank', 'crypto', 'google_pay', or 'apple_pay'" }),
+
+  // Rich Google Pay Payload Fields (Google Pay Web API specs)
+  googlePayPayload: z.object({
+    apiVersion: z.number().optional(),
+    apiVersionMinor: z.number().optional(),
+    paymentMethodData: z.object({
+      type: z.string().optional(),
+      description: z.string().optional(),
+      info: z.any().optional(),
+      tokenizationData: z.object({
+        type: z.string().optional(),
+        token: z.string().optional(), // containing encrypted token or Tez UPI response JSON
+      }).optional(),
+    }).optional(),
+  }).optional(),
+
+  // Rich Apple Pay PKPaymentToken Fields
+  applePayPayload: z.object({
+    token: z.object({
+      paymentData: z.any().optional(),
+      paymentMethod: z.any().optional(),
+      transactionIdentifier: z.string().optional(),
+    }).optional(),
+  }).optional(),
+
+  // Rich Gateway Response details (from CyberSource/Stripe/etc)
+  gatewayResponse: z.object({
+    id: z.string().optional(),
+    status: z.string().optional(),
+    receipt_number: z.string().optional(), // Bank RRN/ARN
+    authorization_code: z.string().optional(),
+    network_transaction_id: z.string().optional(),
+  }).optional(),
 });
 
 export type ProcessPaymentRequest = z.infer<typeof ProcessPaymentRequestSchema>;

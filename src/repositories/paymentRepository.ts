@@ -27,4 +27,23 @@ export class PaymentRepository implements IPaymentRepository {
       createdAt: row.createdAt,
     }));
   }
+
+  public async getPaymentById(id: string): Promise<Payment | null> {
+    const query = 'SELECT id, order_id as orderId, amount, method, status, created_at as createdAt FROM payments WHERE id = ?';
+    const result = await this.db.prepare(query).bind(id).first<any>();
+    if (!result) return null;
+    return {
+      id: result.id,
+      orderId: result.orderId,
+      amount: result.amount,
+      method: result.method as any,
+      status: result.status as any,
+      createdAt: result.createdAt,
+    };
+  }
+
+  public async updatePaymentStatus(id: string, status: 'initiated' | 'succeeded' | 'failed' | 'refunded' | 'partially_refunded'): Promise<void> {
+    const query = 'UPDATE payments SET status = ? WHERE id = ?';
+    await this.db.prepare(query).bind(status, id).run();
+  }
 }
