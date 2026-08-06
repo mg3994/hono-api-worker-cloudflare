@@ -8,6 +8,13 @@ import { ApiControllers } from '../controllers/apiControllers';
 
 const api = new Hono<{ Bindings: CloudflareBindings }>();
 
+// Centralized schema validation handler (adhering to SOLID and DRY principles)
+const handleValidationResult = (result: any) => {
+  if (!result.success) {
+    throw new ValidationError('Validation failed', result.issues);
+  }
+};
+
 // Bind the Clean Architecture container middleware
 api.use('*', containerMiddleware());
 
@@ -27,11 +34,7 @@ api.get('/me', ApiControllers.getMe);
  */
 api.post(
   '/claims/assign',
-  sValidator('json', AssignClaimRequestSchema, (result, c) => {
-    if (!result.success) {
-      throw new ValidationError('Validation failed', result.issues);
-    }
-  }),
+  sValidator('json', AssignClaimRequestSchema, handleValidationResult),
   ApiControllers.assignClaims
 );
 
@@ -41,11 +44,7 @@ api.post(
  */
 api.post(
   '/claims/revoke',
-  sValidator('json', RevokeClaimRequestSchema, (result, c) => {
-    if (!result.success) {
-      throw new ValidationError('Validation failed', result.issues);
-    }
-  }),
+  sValidator('json', RevokeClaimRequestSchema, handleValidationResult),
   ApiControllers.revokeClaims
 );
 
@@ -61,21 +60,13 @@ api.get('/users/phone', ApiControllers.getUserByPhone);
  */
 api.post(
   '/blogs/:blogId/posts',
-  sValidator('json', CreateBlogPostRequestSchema, (result, c) => {
-    if (!result.success) {
-      throw new ValidationError('Validation failed', result.issues);
-    }
-  }),
+  sValidator('json', CreateBlogPostRequestSchema, handleValidationResult),
   ApiControllers.createBlogPost
 );
 
 api.put(
   '/blogs/:blogId/posts/:postId',
-  sValidator('json', UpdateBlogPostRequestSchema, (result, c) => {
-    if (!result.success) {
-      throw new ValidationError('Validation failed', result.issues);
-    }
-  }),
+  sValidator('json', UpdateBlogPostRequestSchema, handleValidationResult),
   ApiControllers.updateBlogPost
 );
 
@@ -94,11 +85,7 @@ api.get('/business/:id/users', ApiControllers.getBusinessUsers);
  */
 api.post(
   '/devices/sync',
-  sValidator('json', DeviceSyncRequestSchema, (result, c) => {
-    if (!result.success) {
-      throw new ValidationError('Validation failed', result.issues);
-    }
-  }),
+  sValidator('json', DeviceSyncRequestSchema, handleValidationResult),
   ApiControllers.syncDeviceSession
 );
 
@@ -108,11 +95,7 @@ api.post(
  */
 api.post(
   '/notifications/send',
-  sValidator('json', SendNotificationRequestSchema, (result, c) => {
-    if (!result.success) {
-      throw new ValidationError('Validation failed', result.issues);
-    }
-  }),
+  sValidator('json', SendNotificationRequestSchema, handleValidationResult),
   ApiControllers.sendPushNotification
 );
 
@@ -122,11 +105,7 @@ api.post(
  */
 api.post(
   '/orders',
-  sValidator('json', CreateOrderRequestSchema, (result, c) => {
-    if (!result.success) {
-      throw new ValidationError('Validation failed', result.issues);
-    }
-  }),
+  sValidator('json', CreateOrderRequestSchema, handleValidationResult),
   ApiControllers.createOrder
 );
 
@@ -142,11 +121,7 @@ api.get('/orders', ApiControllers.getOrders);
  */
 api.post(
   '/payments/process',
-  sValidator('json', ProcessPaymentRequestSchema, (result, c) => {
-    if (!result.success) {
-      throw new ValidationError('Validation failed', result.issues);
-    }
-  }),
+  sValidator('json', ProcessPaymentRequestSchema, handleValidationResult),
   ApiControllers.processPayment
 );
 
@@ -156,11 +131,7 @@ api.post(
  */
 api.post(
   '/payments/refund',
-  sValidator('json', RefundPaymentRequestSchema, (result, c) => {
-    if (!result.success) {
-      throw new ValidationError('Validation failed', result.issues);
-    }
-  }),
+  sValidator('json', RefundPaymentRequestSchema, handleValidationResult),
   ApiControllers.refundPayment
 );
 
@@ -176,11 +147,7 @@ api.get('/blogs/:blogId/posts/:postId/comments', ApiControllers.listComments);
  */
 api.post(
   '/blogs/:blogId/posts/:postId/comments',
-  sValidator('json', CreateBlogCommentRequestSchema, (result, c) => {
-    if (!result.success) {
-      throw new ValidationError('Validation failed', result.issues);
-    }
-  }),
+  sValidator('json', CreateBlogCommentRequestSchema, handleValidationResult),
   ApiControllers.createComment
 );
 
