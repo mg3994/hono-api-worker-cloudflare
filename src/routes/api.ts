@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { sValidator } from '@hono/standard-validator';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { containerMiddleware } from '../middlewares/containerMiddleware';
-import { AssignClaimRequestSchema, DeviceSyncRequestSchema, SendNotificationRequestSchema, RevokeClaimRequestSchema, CreateOrderRequestSchema, ProcessPaymentRequestSchema, CreateBlogPostRequestSchema, UpdateBlogPostRequestSchema } from '../domain/types';
+import { AssignClaimRequestSchema, DeviceSyncRequestSchema, SendNotificationRequestSchema, RevokeClaimRequestSchema, CreateOrderRequestSchema, ProcessPaymentRequestSchema, CreateBlogPostRequestSchema, UpdateBlogPostRequestSchema, RefundPaymentRequestSchema, CreateBlogCommentRequestSchema } from '../domain/types';
 import { ValidationError } from '../domain/errors';
 import { ApiControllers } from '../controllers/apiControllers';
 
@@ -148,6 +148,40 @@ api.post(
     }
   }),
   ApiControllers.processPayment
+);
+
+/**
+ * POST /api/payments/refund
+ * Processes refund for a specific payment.
+ */
+api.post(
+  '/payments/refund',
+  sValidator('json', RefundPaymentRequestSchema, (result, c) => {
+    if (!result.success) {
+      throw new ValidationError('Validation failed', result.issues);
+    }
+  }),
+  ApiControllers.refundPayment
+);
+
+/**
+ * GET /api/blogs/:blogId/posts/:postId/comments
+ * Retrieves list of comments for a specific post.
+ */
+api.get('/blogs/:blogId/posts/:postId/comments', ApiControllers.listComments);
+
+/**
+ * POST /api/blogs/:blogId/posts/:postId/comments
+ * Submits a new comment for a specific post.
+ */
+api.post(
+  '/blogs/:blogId/posts/:postId/comments',
+  sValidator('json', CreateBlogCommentRequestSchema, (result, c) => {
+    if (!result.success) {
+      throw new ValidationError('Validation failed', result.issues);
+    }
+  }),
+  ApiControllers.createComment
 );
 
 /**

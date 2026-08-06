@@ -106,8 +106,13 @@ export class ApiControllers {
       throw new PermissionDeniedError('Permission denied: You must be associated with this business to view its users.');
     }
 
+    const limitStr = c.req.query('limit');
+    const offsetStr = c.req.query('offset');
+    const limit = limitStr ? parseInt(limitStr, 10) : undefined;
+    const offset = offsetStr ? parseInt(offsetStr, 10) : undefined;
+
     const container = c.get('container');
-    const usersList = await container.getBusinessUsersUseCase.execute(businessId);
+    const usersList = await container.getBusinessUsersUseCase.execute(businessId, limit, offset);
 
     return c.json<StandardResponse>({
       success: true,
@@ -252,9 +257,14 @@ export class ApiControllers {
     }
 
     const businessId = c.req.query('businessId');
+    const limitStr = c.req.query('limit');
+    const offsetStr = c.req.query('offset');
+    const limit = limitStr ? parseInt(limitStr, 10) : undefined;
+    const offset = offsetStr ? parseInt(offsetStr, 10) : undefined;
+
     const container = c.get('container');
 
-    const orders = await container.getOrdersUseCase.execute(user, businessId);
+    const orders = await container.getOrdersUseCase.execute(user, businessId, limit, offset);
 
     return c.json<StandardResponse>({
       success: true,
@@ -279,6 +289,80 @@ export class ApiControllers {
     return c.json<StandardResponse>({
       success: true,
       data: payment,
+    });
+  }
+
+  /**
+   * Controller for POST /api/payments/refund
+   */
+  public static async refundPayment(c: Context) {
+    const user = c.get('user') as UserContext | null;
+    if (!user) {
+      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
+    }
+
+    const payload = c.req.valid('json');
+    const container = c.get('container');
+
+    const updatedPayment = await container.refundPaymentUseCase.execute(user, payload);
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: updatedPayment,
+    });
+  }
+
+  /**
+   * Controller for GET /api/blogs/:blogId/posts/:postId/comments
+   */
+  public static async listComments(c: Context) {
+    const user = c.get('user') as UserContext | null;
+    if (!user) {
+      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
+    }
+
+    const blogId = c.req.param('blogId');
+    const postId = c.req.param('postId');
+    if (!blogId || !postId) {
+      throw new Error('Blog ID or Post ID parameter is missing.');
+    }
+
+    const limitStr = c.req.query('limit');
+    const offsetStr = c.req.query('offset');
+    const limit = limitStr ? parseInt(limitStr, 10) : undefined;
+    const offset = offsetStr ? parseInt(offsetStr, 10) : undefined;
+
+    const container = c.get('container');
+    const commentsList = await container.listCommentsUseCase.execute(user, blogId, postId, limit, offset);
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: commentsList,
+    });
+  }
+
+  /**
+   * Controller for POST /api/blogs/:blogId/posts/:postId/comments
+   */
+  public static async createComment(c: Context) {
+    const user = c.get('user') as UserContext | null;
+    if (!user) {
+      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
+    }
+
+    const blogId = c.req.param('blogId');
+    const postId = c.req.param('postId');
+    if (!blogId || !postId) {
+      throw new Error('Blog ID or Post ID parameter is missing.');
+    }
+
+    const payload = c.req.valid('json');
+    const container = c.get('container');
+    const comment = await container.createCommentUseCase.execute(user, blogId, postId, payload);
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: comment,
     });
   }
 

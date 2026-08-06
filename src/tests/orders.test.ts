@@ -415,4 +415,22 @@ describe('Orders & Payments Hono Routes Integration Tests', () => {
 
     expect(response.status).toBe(401);
   });
+
+  it('should block POST /api/payments/refund with 401 Unauthorized if request is unauthenticated', async () => {
+    const payload = {
+      orderId: 'ord_123',
+      paymentId: 'pay_123',
+      amount: 100,
+    };
+
+    const response = await app.request('/api/payments/refund', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }, mockEnv);
+
+    expect(response.status).toBe(401);
+  });
 });

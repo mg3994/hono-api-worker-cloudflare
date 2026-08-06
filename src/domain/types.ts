@@ -153,6 +153,15 @@ export interface OrderVerificationResult {
   details?: string;
 }
 
+export const RefundPaymentRequestSchema = z.object({
+  orderId: z.string().min(1, { message: 'orderId cannot be empty' }),
+  paymentId: z.string().min(1, { message: 'paymentId cannot be empty' }),
+  amount: z.number().positive({ message: 'Amount must be a positive number' }),
+  reason: z.string().optional(),
+});
+
+export type RefundPaymentRequest = z.infer<typeof RefundPaymentRequestSchema>;
+
 export interface StandardResponse<T = any> {
   success: boolean;
   data?: T;

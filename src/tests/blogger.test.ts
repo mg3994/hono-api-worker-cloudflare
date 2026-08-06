@@ -202,4 +202,23 @@ describe('Blogger Hono Routes Integration Tests', () => {
     }, mockEnv);
     expect(response.status).toBe(401);
   });
+
+  it('should block GET /api/blogs/:blogId/posts/:postId/comments with 401 Unauthorized if request is unauthenticated', async () => {
+    const response = await app.request('/api/blogs/biz_123/posts/post_abc/comments', undefined, mockEnv);
+    expect(response.status).toBe(401);
+  });
+
+  it('should block POST /api/blogs/:blogId/posts/:postId/comments with 401 Unauthorized if request is unauthenticated', async () => {
+    const payload = {
+      content: 'This is an unauthorized comment',
+    };
+    const response = await app.request('/api/blogs/biz_123/posts/post_abc/comments', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }, mockEnv);
+    expect(response.status).toBe(401);
+  });
 });
