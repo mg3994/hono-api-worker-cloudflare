@@ -5,13 +5,21 @@ import { DeviceSessionRecord } from '../domain/sessionRepository';
 
 export class ApiControllers {
   /**
-   * Controller for GET /api/me
+   * Centralized helper to enforce authentication (adhering to SOLID and DRY principles)
    */
-  public static async getMe(c: Context) {
+  private static requireUser(c: Context): UserContext {
     const user = c.get('user') as UserContext | null;
     if (!user) {
       throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
     }
+    return user;
+  }
+
+  /**
+   * Controller for GET /api/me
+   */
+  public static async getMe(c: Context) {
+    const user = ApiControllers.requireUser(c);
 
     const container = c.get('container');
     const latestClaims = await container.getUserClaimsUseCase.execute(user.email);
@@ -38,10 +46,7 @@ export class ApiControllers {
    * Controller for POST /api/claims/assign
    */
   public static async assignClaims(c: Context) {
-    const user = c.get('user') as UserContext | null;
-    if (!user) {
-      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
-    }
+    const user = ApiControllers.requireUser(c);
 
     const payload = c.req.valid('json');
     const container = c.get('container');
@@ -61,10 +66,7 @@ export class ApiControllers {
    * Controller for POST /api/claims/revoke
    */
   public static async revokeClaims(c: Context) {
-    const user = c.get('user') as UserContext | null;
-    if (!user) {
-      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
-    }
+    const user = ApiControllers.requireUser(c);
 
     const payload = c.req.valid('json') as RevokeClaimRequest;
     const container = c.get('container');
@@ -85,10 +87,7 @@ export class ApiControllers {
    * Retrieves all users (emails, roles) mapped to a specific business ID from D1.
    */
   public static async getBusinessUsers(c: Context) {
-    const user = c.get('user') as UserContext | null;
-    if (!user) {
-      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
-    }
+    const user = ApiControllers.requireUser(c);
 
     const businessId = c.req.param('id');
     if (!businessId) {
@@ -185,10 +184,7 @@ export class ApiControllers {
    * Access Controls: Super Admins, OR Owners ('o') / Managers ('m') of the provided business ID.
    */
   public static async sendPushNotification(c: Context) {
-    const user = c.get('user') as UserContext | null;
-    if (!user) {
-      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
-    }
+    const user = ApiControllers.requireUser(c);
 
     const payload = c.req.valid('json') as SendNotificationRequest;
     const { targetUid, businessId, title, body, imageUrl, deepLinkUrl, customData } = payload;
@@ -231,10 +227,7 @@ export class ApiControllers {
    * Controller for POST /api/orders
    */
   public static async createOrder(c: Context) {
-    const user = c.get('user') as UserContext | null;
-    if (!user) {
-      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
-    }
+    const user = ApiControllers.requireUser(c);
 
     const payload = c.req.valid('json') as CreateOrderRequest;
     const container = c.get('container');
@@ -251,10 +244,7 @@ export class ApiControllers {
    * Controller for GET /api/orders
    */
   public static async getOrders(c: Context) {
-    const user = c.get('user') as UserContext | null;
-    if (!user) {
-      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
-    }
+    const user = ApiControllers.requireUser(c);
 
     const businessId = c.req.query('businessId');
     const limitStr = c.req.query('limit');
@@ -276,10 +266,7 @@ export class ApiControllers {
    * Controller for POST /api/payments/process
    */
   public static async processPayment(c: Context) {
-    const user = c.get('user') as UserContext | null;
-    if (!user) {
-      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
-    }
+    const user = ApiControllers.requireUser(c);
 
     const payload = c.req.valid('json') as ProcessPaymentRequest;
     const container = c.get('container');
@@ -296,10 +283,7 @@ export class ApiControllers {
    * Controller for POST /api/payments/refund
    */
   public static async refundPayment(c: Context) {
-    const user = c.get('user') as UserContext | null;
-    if (!user) {
-      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
-    }
+    const user = ApiControllers.requireUser(c);
 
     const payload = c.req.valid('json');
     const container = c.get('container');
@@ -316,10 +300,7 @@ export class ApiControllers {
    * Controller for GET /api/blogs/:blogId/posts/:postId/comments
    */
   public static async listComments(c: Context) {
-    const user = c.get('user') as UserContext | null;
-    if (!user) {
-      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
-    }
+    const user = ApiControllers.requireUser(c);
 
     const blogId = c.req.param('blogId');
     const postId = c.req.param('postId');
@@ -345,10 +326,7 @@ export class ApiControllers {
    * Controller for POST /api/blogs/:blogId/posts/:postId/comments
    */
   public static async createComment(c: Context) {
-    const user = c.get('user') as UserContext | null;
-    if (!user) {
-      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
-    }
+    const user = ApiControllers.requireUser(c);
 
     const blogId = c.req.param('blogId');
     const postId = c.req.param('postId');
@@ -370,10 +348,7 @@ export class ApiControllers {
    * Controller for GET /api/users/phone
    */
   public static async getUserByPhone(c: Context) {
-    const user = c.get('user') as UserContext | null;
-    if (!user) {
-      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
-    }
+    const user = ApiControllers.requireUser(c);
 
     const phoneNumber = c.req.query('phoneNumber') || '';
     const container = c.get('container');
@@ -390,10 +365,7 @@ export class ApiControllers {
    * Controller for POST /api/blogs/:blogId/posts
    */
   public static async createBlogPost(c: Context) {
-    const user = c.get('user') as UserContext | null;
-    if (!user) {
-      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
-    }
+    const user = ApiControllers.requireUser(c);
 
     const blogId = c.req.param('blogId');
     if (!blogId) {
@@ -415,10 +387,7 @@ export class ApiControllers {
    * Controller for PUT /api/blogs/:blogId/posts/:postId
    */
   public static async updateBlogPost(c: Context) {
-    const user = c.get('user') as UserContext | null;
-    if (!user) {
-      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
-    }
+    const user = ApiControllers.requireUser(c);
 
     const blogId = c.req.param('blogId');
     const postId = c.req.param('postId');
@@ -441,10 +410,7 @@ export class ApiControllers {
    * Controller for GET /api/blogs/:blogId/posts/:postId
    */
   public static async getBlogPost(c: Context) {
-    const user = c.get('user') as UserContext | null;
-    if (!user) {
-      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
-    }
+    const user = ApiControllers.requireUser(c);
 
     const blogId = c.req.param('blogId');
     const postId = c.req.param('postId');
@@ -465,10 +431,7 @@ export class ApiControllers {
    * Controller for DELETE /api/blogs/:blogId/posts/:postId
    */
   public static async deleteBlogPost(c: Context) {
-    const user = c.get('user') as UserContext | null;
-    if (!user) {
-      throw new AuthenticationError('Authentication required: Missing or invalid Authorization header.');
-    }
+    const user = ApiControllers.requireUser(c);
 
     const blogId = c.req.param('blogId');
     const postId = c.req.param('postId');
