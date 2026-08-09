@@ -44,7 +44,46 @@ Retrieves a user account from Firebase matching the specified phone number.
 
 ---
 
-### 8. `POST /api/orders` & `GET /api/orders`
+### 8. `POST /api/users/create`
+Creates a new Firebase Auth user account.
+
+#### Headers
+- `Authorization: Bearer <Firebase_ID_Token>` (Required)
+
+#### Payload Schema
+```json
+{
+  "email": "newuser@example.com",
+  "password": "securepassword123", // Optional, min 6 characters
+  "phoneNumber": "+919876543210" // Optional
+}
+```
+
+#### Authorization Rules
+- Restricted to Super Admins, Business Owners, or Managers.
+
+---
+
+### 9. `POST /api/users/link-phone`
+Links or updates a phone number on an existing user account.
+
+#### Headers
+- `Authorization: Bearer <Firebase_ID_Token>` (Required)
+
+#### Payload Schema
+```json
+{
+  "uid": "user_local_id_123",
+  "phoneNumber": "+919876543210"
+}
+```
+
+#### Authorization Rules
+- Restricted to Super Admins, Business Owners, or Managers.
+
+---
+
+### 10. `POST /api/orders` & `GET /api/orders`
 Manages orders with pagination support.
 
 #### Headers
@@ -65,7 +104,7 @@ Manages orders with pagination support.
 
 ---
 
-### 9. `POST /api/payments/process`
+### 11. `POST /api/payments/process`
 Processes standard card, crypto, Google Pay, or Apple Pay payments for a pending order.
 
 #### Payload Schema
@@ -86,7 +125,7 @@ Processes standard card, crypto, Google Pay, or Apple Pay payments for a pending
 
 ---
 
-### 10. `POST /api/payments/refund`
+### 12. `POST /api/payments/refund`
 Executes full or partial refunds against a completed payment transaction.
 
 #### Payload Schema
@@ -101,7 +140,7 @@ Executes full or partial refunds against a completed payment transaction.
 
 ---
 
-### 11. Comments API (Blogger)
+### 13. Comments API (Blogger)
 Allows retrieving and creating comments for Blogger posts.
 
 #### `GET /api/blogs/:blogId/posts/:postId/comments`
