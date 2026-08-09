@@ -31,6 +31,7 @@ export interface BlogComment {
   published: string;
   updated: string;
   content: string;
+  status?: 'live' | 'spam' | 'pending';
   author: {
     displayName: string;
     image: {
@@ -103,12 +104,17 @@ export interface IBloggerService {
   revertPost(blogId: string, postId: string, accessToken: string): Promise<BloggerPost>;
   deletePost(blogId: string, postId: string, accessToken: string): Promise<void>;
   listComments(blogId: string, postId: string, accessToken?: string): Promise<BlogComment[]>;
+  listCommentsByBlog(blogId: string, accessToken?: string): Promise<BlogComment[]>;
   getComment(blogId: string, postId: string, commentId: string, accessToken?: string): Promise<BlogComment>;
   createComment(blogId: string, postId: string, accessToken: string, content: string): Promise<BlogComment>;
   deleteComment(blogId: string, postId: string, commentId: string, accessToken: string): Promise<void>;
+  markCommentAsSpam(blogId: string, postId: string, commentId: string, accessToken: string): Promise<BlogComment>;
+  approveComment(blogId: string, postId: string, commentId: string, accessToken: string): Promise<BlogComment>;
+  removeComment(blogId: string, postId: string, commentId: string, accessToken: string): Promise<BlogComment>;
   listPages(blogId: string, accessToken?: string): Promise<BloggerPage[]>;
   getPage(blogId: string, pageId: string, accessToken?: string): Promise<BloggerPage>;
   createPage(blogId: string, accessToken: string, title: string, content: string): Promise<BloggerPage>;
   updatePage(blogId: string, pageId: string, accessToken: string, title: string, content: string): Promise<BloggerPage>;
   deletePage(blogId: string, pageId: string, accessToken: string): Promise<void>;
+  getUserProfile(userId: string, accessToken: string): Promise<any>;
 }

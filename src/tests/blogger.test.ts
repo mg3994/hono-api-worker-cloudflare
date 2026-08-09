@@ -24,14 +24,19 @@ describe('Blogger Use Cases Unit Tests', () => {
     revertPost: vi.fn(),
     deletePost: vi.fn(),
     listComments: vi.fn(),
+    listCommentsByBlog: vi.fn(),
     getComment: vi.fn(),
     createComment: vi.fn(),
     deleteComment: vi.fn(),
+    markCommentAsSpam: vi.fn(),
+    approveComment: vi.fn(),
+    removeComment: vi.fn(),
     listPages: vi.fn(),
     getPage: vi.fn(),
     createPage: vi.fn(),
     updatePage: vi.fn(),
     deletePage: vi.fn(),
+    getUserProfile: vi.fn(),
   });
 
   describe('CreateBlogPostUseCase', () => {
@@ -234,6 +239,32 @@ describe('BloggerService Concrete Class Unit Tests', () => {
       await service.deletePage('mock-blog-id', page.id, 'token');
       const pagesAfterDelete = await service.listPages('mock-blog-id');
       expect(pagesAfterDelete.length).toBe(1);
+
+      // 5. Scheduled Post simulation
+      const scheduledPost = await service.createPost('mock-blog-id', 'token', {
+        title: 'Future scheduled post',
+        content: 'Soon to be released',
+        isDraft: false,
+        publishDate: new Date(Date.now() + 1000 * 3600 * 24).toISOString(), // 1 day in the future
+      });
+      expect(scheduledPost.status).toBe('SCHEDULED');
+
+      // 6. Comments moderation
+      const blogComments = await service.listCommentsByBlog('mock-blog-id', 'token');
+      expect(blogComments.length).toBeGreaterThan(0);
+
+      const spammed = await service.markCommentAsSpam('mock-blog-id', 'post_1', createdComment.id, 'token');
+      expect(spammed.status).toBe('spam');
+
+      const approved = await service.approveComment('mock-blog-id', 'post_1', createdComment.id, 'token');
+      expect(approved.status).toBe('live');
+
+      const removed = await service.removeComment('mock-blog-id', 'post_1', createdComment.id, 'token');
+      expect(removed.content).toContain('removed');
+
+      // 7. User profile
+      const userProfile = await service.getUserProfile('12345', 'token');
+      expect(userProfile.displayName).toBe('Umesh Sharma');
     });
 });
 

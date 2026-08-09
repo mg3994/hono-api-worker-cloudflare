@@ -234,6 +234,7 @@ export class BloggerService implements IBloggerService {
       content: string;
       labels?: string[];
       isDraft?: boolean;
+      publishDate?: string;
     }
   ): Promise<BloggerPost> {
     const payload: any = {
@@ -245,10 +246,16 @@ export class BloggerService implements IBloggerService {
     if (options.labels) {
       payload.labels = options.labels;
     }
+    if (options.publishDate) {
+      payload.published = options.publishDate;
+    }
 
-    const extraParams = {
+    const extraParams: any = {
       isDraft: String(options.isDraft || false),
     };
+    if (options.publishDate) {
+      extraParams.publishDate = options.publishDate;
+    }
 
     const result = await this.fetchBlogger<any>(
       `/blogs/${blogId}/posts`,
@@ -262,15 +269,24 @@ export class BloggerService implements IBloggerService {
       return this.mapToPost(result);
     }
 
+    // Simulate scheduled posts in mock fallback store
+    let finalStatus: 'LIVE' | 'DRAFT' | 'SCHEDULED' = options.isDraft ? 'DRAFT' : 'LIVE';
+    if (options.publishDate) {
+      const pDate = new Date(options.publishDate).getTime();
+      if (pDate > Date.now()) {
+        finalStatus = 'SCHEDULED';
+      }
+    }
+
     // Fallback mock save
     const mockPost: BloggerPost = {
       id: `post_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`,
       blog: { id: blogId },
       title: options.title,
       content: options.content,
-      status: options.isDraft ? 'DRAFT' : 'LIVE',
+      status: finalStatus,
       labels: options.labels || [],
-      published: new Date().toISOString(),
+      published: options.publishDate || new Date().toISOString(),
       updated: new Date().toISOString(),
     };
 
@@ -290,6 +306,7 @@ export class BloggerService implements IBloggerService {
       content: string;
       labels?: string[];
       isDraft?: boolean;
+      publishDate?: string;
     }
   ): Promise<BloggerPost> {
     const payload: any = {
@@ -302,10 +319,16 @@ export class BloggerService implements IBloggerService {
     if (options.labels) {
       payload.labels = options.labels;
     }
+    if (options.publishDate) {
+      payload.published = options.publishDate;
+    }
 
-    const extraParams = {
+    const extraParams: any = {
       publish: String(!(options.isDraft || false)),
     };
+    if (options.publishDate) {
+      extraParams.publishDate = options.publishDate;
+    }
 
     const result = await this.fetchBlogger<any>(
       `/blogs/${blogId}/posts/${postId}`,
@@ -319,6 +342,15 @@ export class BloggerService implements IBloggerService {
       return this.mapToPost(result);
     }
 
+    // Simulate scheduled posts in mock fallback store
+    let finalStatus: 'LIVE' | 'DRAFT' | 'SCHEDULED' = options.isDraft ? 'DRAFT' : 'LIVE';
+    if (options.publishDate) {
+      const pDate = new Date(options.publishDate).getTime();
+      if (pDate > Date.now()) {
+        finalStatus = 'SCHEDULED';
+      }
+    }
+
     // Fallback mock update
     const posts = this.mockPosts.get(blogId) || [];
     const index = posts.findIndex((p) => p.id === postId);
@@ -328,9 +360,9 @@ export class BloggerService implements IBloggerService {
       blog: { id: blogId },
       title: options.title,
       content: options.content,
-      status: options.isDraft ? 'DRAFT' : 'LIVE',
+      status: finalStatus,
       labels: options.labels || [],
-      published: index !== -1 ? posts[index].published : new Date().toISOString(),
+      published: options.publishDate || (index !== -1 ? posts[index].published : new Date().toISOString()),
       updated: new Date().toISOString(),
     };
 
@@ -356,7 +388,7 @@ export class BloggerService implements IBloggerService {
   ): Promise<BloggerPost> {
     const result = await this.fetchBlogger<any>(
       `/blogs/${blogId}/posts/${postId}`,
-      'PUT', // patch uses PATCH or PUT in standard Blogger API fallbacks
+      'PUT',
       accessToken,
       options
     );
@@ -440,6 +472,30 @@ export class BloggerService implements IBloggerService {
     return this.mockComments.get(postId) || [];
   }
 
+  public async listCommentsByBlog(blogId: string, accessToken?: string): Promise<BlogComment[]> {
+    const result = await this.fetchBlogger<{ items?: any[] }>(
+      `/blogs/${blogId}/comments`,
+      'GET',
+      accessToken
+    );
+
+    if (result && result.items) {
+      return result.items.map((item) => this.mapToComment(item));
+    }
+
+    // Fallback mock aggregate comments across all posts for this blogId
+    const aggregated: BlogComment[] = [];
+    for (const postList of this.mockPosts.values()) {
+      for (const post of postList) {
+        if (post.blog.id === blogId) {
+          const postComments = this.mockComments.get(post.id) || [];
+          aggregated.push(...postComments);
+        }
+      }
+    }
+    return aggregated;
+  }
+
   public async getComment(blogId: string, postId: string, commentId: string, accessToken?: string): Promise<BlogComment> {
     const result = await this.fetchBlogger<any>(
       `/blogs/${blogId}/posts/${postId}/comments/${commentId}`,
@@ -489,6 +545,7 @@ export class BloggerService implements IBloggerService {
       published: new Date().toISOString(),
       updated: new Date().toISOString(),
       content,
+      status: 'live',
       author: {
         displayName: 'Mock Author',
         image: {
@@ -517,6 +574,57 @@ export class BloggerService implements IBloggerService {
     const comments = this.mockComments.get(postId) || [];
     const filtered = comments.filter((c) => c.id !== commentId);
     this.mockComments.set(postId, filtered);
+  }
+
+  public async markCommentAsSpam(blogId: string, postId: string, commentId: string, accessToken: string): Promise<BlogComment> {
+    const result = await this.fetchBlogger<any>(
+      `/blogs/${blogId}/posts/${postId}/comments/${commentId}/spam`,
+      'POST',
+      accessToken
+    );
+
+    if (result) {
+      return this.mapToComment(result);
+    }
+
+    // Fallback mock spam
+    const comment = await this.getComment(blogId, postId, commentId, accessToken);
+    comment.status = 'spam';
+    return comment;
+  }
+
+  public async approveComment(blogId: string, postId: string, commentId: string, accessToken: string): Promise<BlogComment> {
+    const result = await this.fetchBlogger<any>(
+      `/blogs/${blogId}/posts/${postId}/comments/${commentId}/approve`,
+      'POST',
+      accessToken
+    );
+
+    if (result) {
+      return this.mapToComment(result);
+    }
+
+    // Fallback mock approve
+    const comment = await this.getComment(blogId, postId, commentId, accessToken);
+    comment.status = 'live';
+    return comment;
+  }
+
+  public async removeComment(blogId: string, postId: string, commentId: string, accessToken: string): Promise<BlogComment> {
+    const result = await this.fetchBlogger<any>(
+      `/blogs/${blogId}/posts/${postId}/comments/${commentId}/remove`,
+      'POST',
+      accessToken
+    );
+
+    if (result) {
+      return this.mapToComment(result);
+    }
+
+    // Fallback mock remove content
+    const comment = await this.getComment(blogId, postId, commentId, accessToken);
+    comment.content = '[This comment was removed by administrator]';
+    return comment;
   }
 
   public async listPages(blogId: string, accessToken?: string): Promise<BloggerPage[]> {
@@ -652,6 +760,25 @@ export class BloggerService implements IBloggerService {
     this.mockPages.set(blogId, filtered);
   }
 
+  public async getUserProfile(userId: string, accessToken: string): Promise<any> {
+    const result = await this.fetchBlogger<any>(
+      `/users/${userId}`,
+      'GET',
+      accessToken
+    );
+
+    if (result) return result;
+
+    // Fallback mock user profile
+    return {
+      kind: 'blogger#user',
+      id: userId,
+      displayName: 'Umesh Sharma',
+      url: 'https://www.blogger.com/profile/12345',
+      about: 'A passionate developer and blogger.',
+    };
+  }
+
   private mapToBlog(raw: any): Blog {
     return {
       id: raw.id || '',
@@ -684,6 +811,7 @@ export class BloggerService implements IBloggerService {
       published: raw.published || '',
       updated: raw.updated || '',
       content: raw.content || '',
+      status: raw.status === 'spam' ? 'spam' : raw.status === 'pending' ? 'pending' : 'live',
       author: {
         displayName: raw.author?.displayName || 'Unknown Author',
         image: {
@@ -781,6 +909,7 @@ export class BloggerService implements IBloggerService {
         published: new Date().toISOString(),
         updated: new Date().toISOString(),
         content: 'I love this wireless mouse!',
+        status: 'live',
         author: {
           displayName: 'Umesh Sharma',
           image: {
