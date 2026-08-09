@@ -362,6 +362,49 @@ export class ApiControllers {
   }
 
   /**
+   * Controller for POST /api/users/create
+   */
+  public static async createFirebaseUser(c: Context) {
+    const user = ApiControllers.requireUser(c);
+
+    const payload = c.req.valid('json');
+    const container = c.get('container');
+
+    const createdUser = await container.createFirebaseUserUseCase.execute(
+      user,
+      payload.email,
+      payload.password,
+      payload.phoneNumber
+    );
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: createdUser,
+    });
+  }
+
+  /**
+   * Controller for POST /api/users/link-phone
+   */
+  public static async linkUserPhone(c: Context) {
+    const user = ApiControllers.requireUser(c);
+
+    const payload = c.req.valid('json');
+    const container = c.get('container');
+
+    const updatedUser = await container.linkUserPhoneUseCase.execute(
+      user,
+      payload.uid,
+      payload.phoneNumber
+    );
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: updatedUser,
+    });
+  }
+
+  /**
    * Controller for POST /api/blogs/:blogId/posts
    */
   public static async createBlogPost(c: Context) {

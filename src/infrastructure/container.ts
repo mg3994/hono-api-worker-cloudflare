@@ -30,6 +30,8 @@ import { CreateOrderUseCase } from '../usecases/createOrderUseCase';
 import { GetOrdersUseCase } from '../usecases/getOrdersUseCase';
 import { ProcessPaymentUseCase } from '../usecases/processPaymentUseCase';
 import { GetUserByPhoneUseCase } from '../usecases/getUserByPhoneUseCase';
+import { CreateFirebaseUserUseCase } from '../usecases/createFirebaseUserUseCase';
+import { LinkUserPhoneUseCase } from '../usecases/linkUserPhoneUseCase';
 import { CreateBlogPostUseCase } from '../usecases/createBlogPostUseCase';
 import { UpdateBlogPostUseCase } from '../usecases/updateBlogPostUseCase';
 import { GetBlogPostUseCase } from '../usecases/getBlogPostUseCase';
@@ -63,6 +65,8 @@ export interface AppContainer {
   getOrdersUseCase: GetOrdersUseCase;
   processPaymentUseCase: ProcessPaymentUseCase;
   getUserByPhoneUseCase: GetUserByPhoneUseCase;
+  createFirebaseUserUseCase: CreateFirebaseUserUseCase;
+  linkUserPhoneUseCase: LinkUserPhoneUseCase;
   orderVerificationService: IOrderVerificationService;
   bloggerService: IBloggerService;
   createBlogPostUseCase: CreateBlogPostUseCase;
@@ -163,6 +167,8 @@ export function createContainer(env: CloudflareBindings): AppContainer {
   const getOrdersUseCase = new GetOrdersUseCase(orderRepository);
   const processPaymentUseCase = new ProcessPaymentUseCase(orderRepository, paymentRepository);
   const getUserByPhoneUseCase = new GetUserByPhoneUseCase(firebaseRepository);
+  const createFirebaseUserUseCase = new CreateFirebaseUserUseCase(firebaseRepository);
+  const linkUserPhoneUseCase = new LinkUserPhoneUseCase(firebaseRepository);
   const orderVerificationService = new OrderVerificationService(env.BLOGGER_API_KEY || 'blogger_mock_api_key');
   const bloggerService = new BloggerService(env.BLOGGER_API_KEY || 'blogger_mock_api_key');
 
@@ -189,6 +195,8 @@ export function createContainer(env: CloudflareBindings): AppContainer {
     getOrdersUseCase,
     processPaymentUseCase,
     getUserByPhoneUseCase,
+    createFirebaseUserUseCase,
+    linkUserPhoneUseCase,
     orderVerificationService,
     bloggerService,
     createBlogPostUseCase,

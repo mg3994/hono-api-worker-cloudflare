@@ -168,4 +168,34 @@ describe('Hono Routes Integration Tests', () => {
     expect(body.success).toBe(false);
     expect(body.error.code).toBe('UNAUTHORIZED');
   });
+
+  it('should block POST /api/users/create with 401 Unauthorized if request is unauthenticated', async () => {
+    const response = await app.request('/api/users/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email: 'newuser@example.com' }),
+    }, mockEnv);
+    expect(response.status).toBe(401);
+
+    const body = await response.json() as any;
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('should block POST /api/users/link-phone with 401 Unauthorized if request is unauthenticated', async () => {
+    const response = await app.request('/api/users/link-phone', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ uid: 'user_123', phoneNumber: '+1234567890' }),
+    }, mockEnv);
+    expect(response.status).toBe(401);
+
+    const body = await response.json() as any;
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('UNAUTHORIZED');
+  });
 });

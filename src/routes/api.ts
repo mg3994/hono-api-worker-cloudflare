@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { sValidator } from '@hono/standard-validator';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { containerMiddleware } from '../middlewares/containerMiddleware';
-import { AssignClaimRequestSchema, DeviceSyncRequestSchema, SendNotificationRequestSchema, RevokeClaimRequestSchema, CreateOrderRequestSchema, ProcessPaymentRequestSchema, CreateBlogPostRequestSchema, UpdateBlogPostRequestSchema, RefundPaymentRequestSchema, CreateBlogCommentRequestSchema } from '../domain/types';
+import { AssignClaimRequestSchema, DeviceSyncRequestSchema, SendNotificationRequestSchema, RevokeClaimRequestSchema, CreateOrderRequestSchema, ProcessPaymentRequestSchema, CreateBlogPostRequestSchema, UpdateBlogPostRequestSchema, RefundPaymentRequestSchema, CreateBlogCommentRequestSchema, CreateFirebaseUserRequestSchema, LinkUserPhoneRequestSchema } from '../domain/types';
 import { ValidationError } from '../domain/errors';
 import { ApiControllers } from '../controllers/apiControllers';
 
@@ -53,6 +53,26 @@ api.post(
  * Retrieves a user account from Firebase matching the specified phone number.
  */
 api.get('/users/phone', ApiControllers.getUserByPhone);
+
+/**
+ * POST /api/users/create
+ * Creates a new Firebase Auth user account.
+ */
+api.post(
+  '/users/create',
+  sValidator('json', CreateFirebaseUserRequestSchema, handleValidationResult),
+  ApiControllers.createFirebaseUser
+);
+
+/**
+ * POST /api/users/link-phone
+ * Links or updates phone number on a user account.
+ */
+api.post(
+  '/users/link-phone',
+  sValidator('json', LinkUserPhoneRequestSchema, handleValidationResult),
+  ApiControllers.linkUserPhone
+);
 
 /**
  * Blogger Posts CRUD API Routes

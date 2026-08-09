@@ -673,3 +673,104 @@ describe('GetUserByPhoneUseCase Unit Tests', () => {
     await expect(useCase.execute(caller, '+919876543210')).rejects.toThrow(PermissionDeniedError);
   });
 });
+
+describe('CreateFirebaseUserUseCase Unit Tests', () => {
+  const mockFirebaseRepo = (): IFirebaseRepository => ({
+    getUserByEmail: vi.fn(),
+    getUserByUid: vi.fn(),
+    getUserByPhone: vi.fn(),
+    setCustomClaims: vi.fn(),
+    createUser: vi.fn(),
+    linkPhone: vi.fn(),
+  });
+
+  it('should allow Super Admin, Business Owner, or Manager to create users', async () => {
+    const repo = mockFirebaseRepo();
+    const { CreateFirebaseUserUseCase } = await import('../usecases/createFirebaseUserUseCase');
+    const useCase = new CreateFirebaseUserUseCase(repo);
+
+    const caller: UserContext = {
+      uid: 'owner',
+      email: 'owner@test.com',
+      isSuperAdmin: false,
+      claims: { o: ['biz_1'], m: [], s: [] },
+    };
+
+    const targetUser: FirebaseUserRecord = {
+      localId: 'target_123',
+      email: 'target@test.com',
+    };
+
+    vi.spyOn(repo, 'createUser').mockResolvedValue(targetUser);
+
+    const result = await useCase.execute(caller, 'target@test.com', 'secret_pwd', '+15555555555');
+    expect(result).toEqual(targetUser);
+    expect(repo.createUser).toHaveBeenCalledWith('target@test.com', 'secret_pwd', '+15555555555');
+  });
+
+  it('should block non-associated users with PermissionDeniedError', async () => {
+    const repo = mockFirebaseRepo();
+    const { CreateFirebaseUserUseCase } = await import('../usecases/createFirebaseUserUseCase');
+    const useCase = new CreateFirebaseUserUseCase(repo);
+
+    const caller: UserContext = {
+      uid: 'staff',
+      email: 'staff@test.com',
+      isSuperAdmin: false,
+      claims: { o: [], m: [], s: ['biz_1'] },
+    };
+
+    await expect(useCase.execute(caller, 'target@test.com')).rejects.toThrow(PermissionDeniedError);
+  });
+});
+
+describe('LinkUserPhoneUseCase Unit Tests', () => {
+  const mockFirebaseRepo = (): IFirebaseRepository => ({
+    getUserByEmail: vi.fn(),
+    getUserByUid: vi.fn(),
+    getUserByPhone: vi.fn(),
+    setCustomClaims: vi.fn(),
+    createUser: vi.fn(),
+    linkPhone: vi.fn(),
+  });
+
+  it('should allow Super Admin, Business Owner, or Manager to link phone numbers', async () => {
+    const repo = mockFirebaseRepo();
+    const { LinkUserPhoneUseCase } = await import('../usecases/linkUserPhoneUseCase');
+    const useCase = new LinkUserPhoneUseCase(repo);
+
+    const caller: UserContext = {
+      uid: 'manager',
+      email: 'manager@test.com',
+      isSuperAdmin: false,
+      claims: { o: [], m: ['biz_1'], s: [] },
+    };
+
+    const targetUser: FirebaseUserRecord = {
+      localId: 'target_123',
+      email: 'target@test.com',
+      phoneNumber: '+15555555555',
+    };
+
+    vi.spyOn(repo, 'linkPhone').mockResolvedValue(targetUser);
+
+    const result = await useCase.execute(caller, 'target_123', '+15555555555');
+    expect(result).toEqual(targetUser);
+    expect(repo.linkPhone).toHaveBeenCalledWith('target_123', '+15555555555');
+  });
+
+  it('should block non-associated users with PermissionDeniedError', async () => {
+    const repo = mockFirebaseRepo();
+    const { LinkUserPhoneUseCase } = await import('../usecases/linkUserPhoneUseCase');
+    const useCase = new LinkUserPhoneUseCase(repo);
+
+    const caller: UserContext = {
+      uid: 'staff',
+      email: 'staff@test.com',
+      isSuperAdmin: false,
+      claims: { o: [], m: [], s: ['biz_1'] },
+    };
+
+    await expect(useCase.execute(caller, 'target_123', '+15555555555')).rejects.toThrow(PermissionDeniedError);
+  });
+});

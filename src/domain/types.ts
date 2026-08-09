@@ -162,6 +162,21 @@ export const RefundPaymentRequestSchema = z.object({
 
 export type RefundPaymentRequest = z.infer<typeof RefundPaymentRequestSchema>;
 
+export const CreateFirebaseUserRequestSchema = z.object({
+  email: z.string().email({ message: 'Invalid email address' }),
+  password: z.string().min(6, { message: 'Password must be at least 6 characters' }).optional(),
+  phoneNumber: z.string().optional(),
+});
+
+export type CreateFirebaseUserRequest = z.infer<typeof CreateFirebaseUserRequestSchema>;
+
+export const LinkUserPhoneRequestSchema = z.object({
+  uid: z.string().min(1, { message: 'UID cannot be empty' }),
+  phoneNumber: z.string().min(1, { message: 'Phone number cannot be empty' }),
+});
+
+export type LinkUserPhoneRequest = z.infer<typeof LinkUserPhoneRequestSchema>;
+
 export interface StandardResponse<T = any> {
   success: boolean;
   data?: T;
