@@ -30,6 +30,93 @@ All responses follow a uniform JSON structure:
 
 ---
 
+### 7. `GET /api/users/phone`
+Retrieves a user account from Firebase matching the specified phone number.
+
+#### Headers
+- `Authorization: Bearer <Firebase_ID_Token>` (Required)
+
+#### Parameters
+- `phoneNumber` (Query string, e.g. `+919988776655`)
+
+#### Authorization Rules
+- Restricted to Super Admins, Owners (`o`), or Managers/Moderators (`m`) of any business.
+
+---
+
+### 8. `POST /api/orders` & `GET /api/orders`
+Manages orders with pagination support.
+
+#### Headers
+- `Authorization: Bearer <Firebase_ID_Token>` (Required)
+
+#### Create Order Payload Schema
+```json
+{
+  "businessId": "118774185466060931",
+  "amount": 250.50
+}
+```
+
+#### Pagination (Query parameters for GET)
+- `limit` (optional): Number of records to return.
+- `offset` (optional): Offset skip index.
+- `businessId` (optional): Query specific business ID.
+
+---
+
+### 9. `POST /api/payments/process`
+Processes standard card, crypto, Google Pay, or Apple Pay payments for a pending order.
+
+#### Payload Schema
+```json
+{
+  "orderId": "ord_123",
+  "amount": 250.50,
+  "method": "google_pay", // or 'card', 'bank', 'crypto', 'apple_pay'
+  "googlePayPayload": {
+    "paymentMethodData": {
+      "tokenizationData": {
+        "token": "{\"tezResponse\": {\"ApprovalRefNo\": \"REF1234567890\", \"txnId\": \"TXN-998877\"}}"
+      }
+    }
+  }
+}
+```
+
+---
+
+### 10. `POST /api/payments/refund`
+Executes full or partial refunds against a completed payment transaction.
+
+#### Payload Schema
+```json
+{
+  "orderId": "ord_123",
+  "paymentId": "pay_123",
+  "amount": 100.00,
+  "reason": "Faulty items"
+}
+```
+
+---
+
+### 11. Comments API (Blogger)
+Allows retrieving and creating comments for Blogger posts.
+
+#### `GET /api/blogs/:blogId/posts/:postId/comments`
+Retrieves the comments list. Supports optional pagination query parameters `limit` and `offset`.
+
+#### `POST /api/blogs/:blogId/posts/:postId/comments`
+Submits a new comment content.
+```json
+{
+  "content": "Awesome review!"
+}
+```
+
+---
+
 ## API Endpoints
 
 ### 1. `GET /api/me`
