@@ -11,7 +11,15 @@ app.onError(globalErrorHandler())
 // Serve standard Renderer for root index SPA React page
 app.use(renderer)
 
-app.get('/', (c) => {
+// Bind clean architecture API endpoints route
+app.route('/api', api)
+
+// Wildcard fallback to serve the client-side SPA route index (supporting client-side routing like React or Flutter Web)
+app.get('/*', (c) => {
+  const path = c.req.path;
+  if (path.startsWith('/api')) {
+    return c.notFound();
+  }
   return c.render(
     <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
       <h1>A Clean Arch Way API Server</h1>
@@ -26,8 +34,5 @@ app.get('/', (c) => {
     </div>
   )
 })
-
-// Bind clean architecture API endpoints route
-app.route('/api', api)
 
 export default app
