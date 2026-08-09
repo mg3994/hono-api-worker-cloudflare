@@ -8,6 +8,7 @@ import { FirebaseTokenVerifier } from '../services/firebaseTokenVerifier';
 import { TokenService } from '../services/tokenService';
 import { ITokenService } from '../domain/tokenService';
 import { ConsoleLogger } from './consoleLogger';
+import { ILogger } from '../domain/logger';
 import { AssignClaimsUseCase } from '../usecases/assignClaimsUseCase';
 import { GetUserClaimsUseCase } from '../usecases/getUserClaimsUseCase';
 import { RevokeClaimsUseCase } from '../usecases/revokeClaimsUseCase';
@@ -45,6 +46,7 @@ import { IMessagingService } from '../domain/messagingService';
 import { MessagingService } from '../services/messagingService';
 
 export interface AppContainer {
+  logger: ILogger;
   firebaseRepository: IFirebaseRepository;
   claimsService: IClaimsService;
   tokenService: ITokenService;
@@ -170,6 +172,7 @@ export function createContainer(env: CloudflareBindings): AppContainer {
   const deleteBlogPostUseCase = new DeleteBlogPostUseCase(bloggerService);
 
   return {
+    logger,
     firebaseRepository,
     claimsService,
     tokenService,

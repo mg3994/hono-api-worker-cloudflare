@@ -39,9 +39,24 @@ export interface BlogComment {
   };
 }
 
+export interface BloggerPage {
+  id: string;
+  blog: {
+    id: string;
+  };
+  title: string;
+  content: string;
+  status: 'LIVE' | 'DRAFT';
+  published?: string;
+  updated?: string;
+  url?: string;
+}
+
 export interface IBloggerService {
   getSelfBlogs(accessToken: string): Promise<Blog[]>;
   getBlogById(blogId: string, accessToken?: string): Promise<Blog>;
+  getBlogByUrl(url: string, accessToken?: string): Promise<Blog>;
+  getPost(blogId: string, postId: string, accessToken?: string): Promise<BloggerPost>;
   createSelfBlog(accessToken: string, name: string, description: string): Promise<Blog>;
   listPosts(
     blogId: string,
@@ -74,7 +89,26 @@ export interface IBloggerService {
       publishDate?: string;
     }
   ): Promise<BloggerPost>;
+  patchPost(
+    blogId: string,
+    postId: string,
+    accessToken: string,
+    options: {
+      title?: string;
+      content?: string;
+      labels?: string[];
+    }
+  ): Promise<BloggerPost>;
+  publishPost(blogId: string, postId: string, accessToken: string): Promise<BloggerPost>;
+  revertPost(blogId: string, postId: string, accessToken: string): Promise<BloggerPost>;
   deletePost(blogId: string, postId: string, accessToken: string): Promise<void>;
   listComments(blogId: string, postId: string, accessToken?: string): Promise<BlogComment[]>;
+  getComment(blogId: string, postId: string, commentId: string, accessToken?: string): Promise<BlogComment>;
   createComment(blogId: string, postId: string, accessToken: string, content: string): Promise<BlogComment>;
+  deleteComment(blogId: string, postId: string, commentId: string, accessToken: string): Promise<void>;
+  listPages(blogId: string, accessToken?: string): Promise<BloggerPage[]>;
+  getPage(blogId: string, pageId: string, accessToken?: string): Promise<BloggerPage>;
+  createPage(blogId: string, accessToken: string, title: string, content: string): Promise<BloggerPage>;
+  updatePage(blogId: string, pageId: string, accessToken: string, title: string, content: string): Promise<BloggerPage>;
+  deletePage(blogId: string, pageId: string, accessToken: string): Promise<void>;
 }

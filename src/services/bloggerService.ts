@@ -1,10 +1,11 @@
-import { IBloggerService, Blog, BloggerPost, BlogComment } from '../domain/bloggerService';
+import { IBloggerService, Blog, BloggerPost, BlogComment, BloggerPage } from '../domain/bloggerService';
 
 export class BloggerService implements IBloggerService {
   private bloggerApiKey: string;
   private mockBlogs: Blog[] = [];
   private mockPosts: Map<string, BloggerPost[]> = new Map();
   private mockComments: Map<string, BlogComment[]> = new Map();
+  private mockPages: Map<string, BloggerPage[]> = new Map();
 
   constructor(bloggerApiKey: string) {
     this.bloggerApiKey = bloggerApiKey;
@@ -131,6 +132,47 @@ export class BloggerService implements IBloggerService {
     return match;
   }
 
+  public async getBlogByUrl(url: string, accessToken?: string): Promise<Blog> {
+    const result = await this.fetchBlogger<any>(
+      '/blogs/byurl',
+      'GET',
+      accessToken,
+      undefined,
+      { url }
+    );
+
+    if (result) {
+      return this.mapToBlog(result);
+    }
+
+    // Fallback mock check
+    const match = this.mockBlogs.find((b) => b.url.toLowerCase() === url.toLowerCase());
+    if (!match) {
+      throw new Error(`Blogger Blog with URL "${url}" was not found.`);
+    }
+    return match;
+  }
+
+  public async getPost(blogId: string, postId: string, accessToken?: string): Promise<BloggerPost> {
+    const result = await this.fetchBlogger<any>(
+      `/blogs/${blogId}/posts/${postId}`,
+      'GET',
+      accessToken
+    );
+
+    if (result) {
+      return this.mapToPost(result);
+    }
+
+    // Fallback mock check
+    const posts = this.mockPosts.get(blogId) || [];
+    const match = posts.find((p) => p.id === postId);
+    if (!match) {
+      throw new Error(`Blogger Post with ID "${postId}" was not found.`);
+    }
+    return match;
+  }
+
   public async listPosts(
     blogId: string,
     options?: {
@@ -163,7 +205,7 @@ export class BloggerService implements IBloggerService {
       return result.items.map((item) => this.mapToPost(item));
     }
 
-    // Fallback mock check (supports offline and unit testing status and search filters)
+    // Fallback mock check
     const posts = this.mockPosts.get(blogId) || [];
     let filtered = [...posts];
 
@@ -302,6 +344,72 @@ export class BloggerService implements IBloggerService {
     return updatedPost;
   }
 
+  public async patchPost(
+    blogId: string,
+    postId: string,
+    accessToken: string,
+    options: {
+      title?: string;
+      content?: string;
+      labels?: string[];
+    }
+  ): Promise<BloggerPost> {
+    const result = await this.fetchBlogger<any>(
+      `/blogs/${blogId}/posts/${postId}`,
+      'PUT', // patch uses PATCH or PUT in standard Blogger API fallbacks
+      accessToken,
+      options
+    );
+
+    if (result) {
+      return this.mapToPost(result);
+    }
+
+    // Fallback mock patch
+    const post = await this.getPost(blogId, postId);
+    if (options.title !== undefined) post.title = options.title;
+    if (options.content !== undefined) post.content = options.content;
+    if (options.labels !== undefined) post.labels = options.labels;
+    post.updated = new Date().toISOString();
+
+    return post;
+  }
+
+  public async publishPost(blogId: string, postId: string, accessToken: string): Promise<BloggerPost> {
+    const result = await this.fetchBlogger<any>(
+      `/blogs/${blogId}/posts/${postId}/publish`,
+      'POST',
+      accessToken
+    );
+
+    if (result) {
+      return this.mapToPost(result);
+    }
+
+    // Fallback mock publish
+    const post = await this.getPost(blogId, postId);
+    post.status = 'LIVE';
+    post.published = new Date().toISOString();
+    return post;
+  }
+
+  public async revertPost(blogId: string, postId: string, accessToken: string): Promise<BloggerPost> {
+    const result = await this.fetchBlogger<any>(
+      `/blogs/${blogId}/posts/${postId}/revert`,
+      'POST',
+      accessToken
+    );
+
+    if (result) {
+      return this.mapToPost(result);
+    }
+
+    // Fallback mock revert
+    const post = await this.getPost(blogId, postId);
+    post.status = 'DRAFT';
+    return post;
+  }
+
   public async deletePost(blogId: string, postId: string, accessToken: string): Promise<void> {
     const result = await this.fetchBlogger<boolean>(
       `/blogs/${blogId}/posts/${postId}`,
@@ -330,6 +438,26 @@ export class BloggerService implements IBloggerService {
 
     // Fallback mock lookup
     return this.mockComments.get(postId) || [];
+  }
+
+  public async getComment(blogId: string, postId: string, commentId: string, accessToken?: string): Promise<BlogComment> {
+    const result = await this.fetchBlogger<any>(
+      `/blogs/${blogId}/posts/${postId}/comments/${commentId}`,
+      'GET',
+      accessToken
+    );
+
+    if (result) {
+      return this.mapToComment(result);
+    }
+
+    // Fallback mock lookup
+    const comments = this.mockComments.get(postId) || [];
+    const match = comments.find((c) => c.id === commentId);
+    if (!match) {
+      throw new Error(`Comment with ID "${commentId}" was not found.`);
+    }
+    return match;
   }
 
   public async createComment(
@@ -376,6 +504,154 @@ export class BloggerService implements IBloggerService {
     return mockComment;
   }
 
+  public async deleteComment(blogId: string, postId: string, commentId: string, accessToken: string): Promise<void> {
+    const result = await this.fetchBlogger<boolean>(
+      `/blogs/${blogId}/posts/${postId}/comments/${commentId}`,
+      'DELETE',
+      accessToken
+    );
+
+    if (result) return;
+
+    // Fallback mock delete comment
+    const comments = this.mockComments.get(postId) || [];
+    const filtered = comments.filter((c) => c.id !== commentId);
+    this.mockComments.set(postId, filtered);
+  }
+
+  public async listPages(blogId: string, accessToken?: string): Promise<BloggerPage[]> {
+    const result = await this.fetchBlogger<{ items?: any[] }>(
+      `/blogs/${blogId}/pages`,
+      'GET',
+      accessToken
+    );
+
+    if (result && result.items) {
+      return result.items.map((item) => this.mapToPage(item));
+    }
+
+    // Fallback mock page list
+    return this.mockPages.get(blogId) || [];
+  }
+
+  public async getPage(blogId: string, pageId: string, accessToken?: string): Promise<BloggerPage> {
+    const result = await this.fetchBlogger<any>(
+      `/blogs/${blogId}/pages/${pageId}`,
+      'GET',
+      accessToken
+    );
+
+    if (result) {
+      return this.mapToPage(result);
+    }
+
+    // Fallback mock lookup
+    const pages = this.mockPages.get(blogId) || [];
+    const match = pages.find((p) => p.id === pageId);
+    if (!match) {
+      throw new Error(`Page with ID "${pageId}" was not found.`);
+    }
+    return match;
+  }
+
+  public async createPage(blogId: string, accessToken: string, title: string, content: string): Promise<BloggerPage> {
+    const payload = {
+      kind: 'blogger#page',
+      blog: { id: blogId },
+      title,
+      content,
+    };
+
+    const result = await this.fetchBlogger<any>(
+      `/blogs/${blogId}/pages`,
+      'POST',
+      accessToken,
+      payload
+    );
+
+    if (result) {
+      return this.mapToPage(result);
+    }
+
+    // Fallback mock create page
+    const mockPage: BloggerPage = {
+      id: `page_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`,
+      blog: { id: blogId },
+      title,
+      content,
+      status: 'LIVE',
+      published: new Date().toISOString(),
+      updated: new Date().toISOString(),
+      url: `https://mockblog.blogspot.com/p/${title.toLowerCase().replace(/[^a-z0-9]/g, '')}.html`,
+    };
+
+    const pages = this.mockPages.get(blogId) || [];
+    pages.push(mockPage);
+    this.mockPages.set(blogId, pages);
+
+    return mockPage;
+  }
+
+  public async updatePage(blogId: string, pageId: string, accessToken: string, title: string, content: string): Promise<BloggerPage> {
+    const payload = {
+      id: pageId,
+      kind: 'blogger#page',
+      blog: { id: blogId },
+      title,
+      content,
+    };
+
+    const result = await this.fetchBlogger<any>(
+      `/blogs/${blogId}/pages/${pageId}`,
+      'PUT',
+      accessToken,
+      payload
+    );
+
+    if (result) {
+      return this.mapToPage(result);
+    }
+
+    // Fallback mock update page
+    const pages = this.mockPages.get(blogId) || [];
+    const index = pages.findIndex((p) => p.id === pageId);
+
+    const updatedPage: BloggerPage = {
+      id: pageId,
+      blog: { id: blogId },
+      title,
+      content,
+      status: 'LIVE',
+      published: index !== -1 ? pages[index].published : new Date().toISOString(),
+      updated: new Date().toISOString(),
+      url: `https://mockblog.blogspot.com/p/${title.toLowerCase().replace(/[^a-z0-9]/g, '')}.html`,
+    };
+
+    if (index !== -1) {
+      pages[index] = updatedPage;
+    } else {
+      pages.push(updatedPage);
+    }
+    this.mockPages.set(blogId, pages);
+
+    return updatedPage;
+  }
+
+  public async deletePage(blogId: string, pageId: string, accessToken: string): Promise<void> {
+    const result = await this.fetchBlogger<boolean>(
+      `/blogs/${blogId}/pages/${pageId}`,
+      'DELETE',
+      accessToken
+    );
+
+    if (result) return;
+
+    // Fallback mock delete page
+    const pages = this.mockPages.get(blogId) || [];
+    const filtered = pages.filter((p) => p.id !== pageId);
+    this.mockPages.set(blogId, filtered);
+  }
+
   private mapToBlog(raw: any): Blog {
     return {
       id: raw.id || '',
@@ -414,6 +690,19 @@ export class BloggerService implements IBloggerService {
           url: raw.author?.image?.url || 'https://example.com/avatar.png',
         },
       },
+    };
+  }
+
+  private mapToPage(raw: any): BloggerPage {
+    return {
+      id: raw.id || '',
+      blog: { id: raw.blog?.id || '' },
+      title: raw.title || '',
+      content: raw.content || '',
+      status: raw.status === 'DRAFT' ? 'DRAFT' : 'LIVE',
+      published: raw.published || '',
+      updated: raw.updated || '',
+      url: raw.url || '',
     };
   }
 
@@ -498,6 +787,19 @@ export class BloggerService implements IBloggerService {
             url: 'https://example.com/avatar.png',
           },
         },
+      },
+    ]);
+
+    this.mockPages.set(blogId, [
+      {
+        id: 'page_1',
+        blog: { id: blogId },
+        title: 'About Us',
+        content: '<p>Welcome to Gautam Retail Store!</p>',
+        status: 'LIVE',
+        published: new Date().toISOString(),
+        updated: new Date().toISOString(),
+        url: 'https://gautamretail.blogspot.com/p/about-us.html',
       },
     ]);
   }

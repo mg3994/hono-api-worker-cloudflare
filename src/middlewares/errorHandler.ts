@@ -9,9 +9,8 @@ export const globalErrorHandler = (): ErrorHandler => {
     let logger = null;
     try {
       const container = c.get('container');
-      if (container) {
-        // ConsoleLogger is typically wired, but any implementation of ILogger can be used
-        logger = (container as any).assignClaimsUseCase?.logger || null;
+      if (container && container.logger) {
+        logger = container.logger;
       }
     } catch {
       // Graceful fallback if container is not available
