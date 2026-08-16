@@ -198,4 +198,27 @@ describe('Hono Routes Integration Tests', () => {
     expect(body.success).toBe(false);
     expect(body.error.code).toBe('UNAUTHORIZED');
   });
+
+  it('should dynamically echo __amp_source_origin for AMP 4 Email GET requests', async () => {
+    const ampSource = 'https://mail.google.com';
+    const response = await app.request(`/api/payments?__amp_source_origin=${encodeURIComponent(ampSource)}`, undefined, mockEnv);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('AMP-Access-Control-Allow-Source-Origin')).toBe(ampSource);
+    expect(response.headers.get('Access-Control-Expose-Headers')).toContain('AMP-Access-Control-Allow-Source-Origin');
+  });
+
+  it('should return 204 No Content with preflight AMP CORS headers on OPTIONS request', async () => {
+    const ampSource = 'https://mail.google.com';
+    const response = await app.request(`/api/payments?__amp_source_origin=${encodeURIComponent(ampSource)}`, {
+      method: 'OPTIONS',
+      headers: {
+        'Origin': 'https://mail.google.com',
+      },
+    }, mockEnv);
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get('AMP-Access-Control-Allow-Source-Origin')).toBe(ampSource);
+    expect(response.headers.get('Access-Control-Allow-Methods')).toContain('GET, POST, PUT, DELETE, OPTIONS');
+  });
 });

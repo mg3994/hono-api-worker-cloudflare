@@ -1,5 +1,5 @@
 import { Context } from 'hono';
-import { UserContext, StandardResponse, DeviceSyncRequest, SendNotificationRequest, RevokeClaimRequest, CreateOrderRequest, ProcessPaymentRequest, CreateBlogPostRequest, UpdateBlogPostRequest } from '../domain/types';
+import { UserContext, StandardResponse, DeviceSyncRequest, SendNotificationRequest, RevokeClaimRequest, CreateOrderRequest, ProcessPaymentRequest, CreateBlogPostRequest, UpdateBlogPostRequest, CreateBlogRequest } from '../domain/types';
 import { AuthenticationError, PermissionDeniedError } from '../domain/errors';
 import { DeviceSessionRecord } from '../domain/sessionRepository';
 
@@ -401,6 +401,49 @@ export class ApiControllers {
     return c.json<StandardResponse>({
       success: true,
       data: updatedUser,
+    });
+  }
+
+  /**
+   * Controller for GET /api/blogs/:blogId/posts
+   */
+  public static async listBlogPosts(c: Context) {
+    const user = ApiControllers.requireUser(c);
+
+    const blogId = c.req.param('blogId');
+    if (!blogId) {
+      throw new Error('Blog ID parameter is missing.');
+    }
+
+    const searchQuery = c.req.query('q') || c.req.query('searchQuery');
+    const status = c.req.query('status');
+
+    const container = c.get('container');
+    const posts = await container.listBlogPostsUseCase.execute(user, blogId, {
+      searchQuery,
+      status,
+    });
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: posts,
+    });
+  }
+
+  /**
+   * Controller for POST /api/blogs
+   */
+  public static async createSelfBlog(c: Context) {
+    const user = ApiControllers.requireUser(c);
+
+    const payload = c.req.valid('json') as CreateBlogRequest;
+    const container = c.get('container');
+
+    const blog = await container.createSelfBlogUseCase.execute(user, payload);
+
+    return c.json<StandardResponse>({
+      success: true,
+      data: blog,
     });
   }
 

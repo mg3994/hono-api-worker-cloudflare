@@ -17,4 +17,6 @@ export interface IFirebaseRepository {
   getUserByUid(uid: string): Promise<FirebaseUserRecord | null>;
   getUserByPhone(phoneNumber: string): Promise<FirebaseUserRecord | null>;
   setCustomClaims(uid: string, claims: CustomClaims): Promise<void>;
+  createUser(email: string, password?: string, phoneNumber?: string): Promise<FirebaseUserRecord>;
+  linkPhone(uid: string, phoneNumber: string): Promise<FirebaseUserRecord>;
 }

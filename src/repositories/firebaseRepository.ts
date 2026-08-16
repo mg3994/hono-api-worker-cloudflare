@@ -93,4 +93,60 @@ export class FirebaseRepository implements IFirebaseRepository {
       throw new Error(`Firebase accounts:setAccountInfo failed: ${errText}`);
     }
   }
+
+  /**
+   * Create a new user account.
+   */
+  public async createUser(email: string, password?: string, phoneNumber?: string): Promise<FirebaseUserRecord> {
+    const headers = await this.getHeaders();
+    const url = 'https://identitytoolkit.googleapis.com/v1/accounts';
+
+    const payload: Record<string, any> = {
+      email,
+      emailVerified: false,
+    };
+    if (password) payload.password = password;
+    if (phoneNumber) payload.phoneNumber = phoneNumber;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(5000), // 5s timeout safeguard
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Firebase account creation failed: ${errText}`);
+    }
+
+    const data = (await response.json()) as FirebaseUserRecord;
+    return data;
+  }
+
+  /**
+   * Link or update phone number on a user account.
+   */
+  public async linkPhone(uid: string, phoneNumber: string): Promise<FirebaseUserRecord> {
+    const headers = await this.getHeaders();
+    const url = 'https://identitytoolkit.googleapis.com/v1/accounts:update';
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        localId: uid,
+        phoneNumber,
+      }),
+      signal: AbortSignal.timeout(5000), // 5s timeout safeguard
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Firebase linkPhone failed: ${errText}`);
+    }
+
+    const data = (await response.json()) as FirebaseUserRecord;
+    return data;
+  }
 }

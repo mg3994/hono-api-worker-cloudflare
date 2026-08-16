@@ -2,7 +2,8 @@ import { Hono } from 'hono';
 import { sValidator } from '@hono/standard-validator';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { containerMiddleware } from '../middlewares/containerMiddleware';
-import { AssignClaimRequestSchema, DeviceSyncRequestSchema, SendNotificationRequestSchema, RevokeClaimRequestSchema, CreateOrderRequestSchema, ProcessPaymentRequestSchema, CreateBlogPostRequestSchema, UpdateBlogPostRequestSchema, RefundPaymentRequestSchema, CreateBlogCommentRequestSchema, CreateFirebaseUserRequestSchema, LinkUserPhoneRequestSchema } from '../domain/types';
+import { ampCorsMiddleware } from '../middlewares/ampCorsMiddleware';
+import { AssignClaimRequestSchema, DeviceSyncRequestSchema, SendNotificationRequestSchema, RevokeClaimRequestSchema, CreateOrderRequestSchema, ProcessPaymentRequestSchema, CreateBlogPostRequestSchema, UpdateBlogPostRequestSchema, RefundPaymentRequestSchema, CreateBlogCommentRequestSchema, CreateFirebaseUserRequestSchema, LinkUserPhoneRequestSchema, CreateBlogRequestSchema } from '../domain/types';
 import { ValidationError } from '../domain/errors';
 import { ApiControllers } from '../controllers/apiControllers';
 
@@ -14,6 +15,9 @@ const handleValidationResult = (result: any) => {
     throw new ValidationError('Validation failed', result.issues);
   }
 };
+
+// Bind AMP for Email dynamic CORS middleware globally across all API routes
+api.use('*', ampCorsMiddleware());
 
 // Bind the Clean Architecture container middleware
 api.use('*', containerMiddleware());
@@ -73,6 +77,22 @@ api.post(
   sValidator('json', LinkUserPhoneRequestSchema, handleValidationResult),
   ApiControllers.linkUserPhone
 );
+
+/**
+ * POST /api/blogs
+ * Creates a new blog for the user.
+ */
+api.post(
+  '/blogs',
+  sValidator('json', CreateBlogRequestSchema, handleValidationResult),
+  ApiControllers.createSelfBlog
+);
+
+/**
+ * GET /api/blogs/:blogId/posts
+ * Retrieves blog posts with optional search query and status filters.
+ */
+api.get('/blogs/:blogId/posts', ApiControllers.listBlogPosts);
 
 /**
  * Blogger Posts CRUD API Routes
