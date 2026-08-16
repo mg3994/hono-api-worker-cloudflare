@@ -2,5 +2,28 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "apiworker",
   "compatibility_date": "2025-08-03",
-  "main": "./src/index.tsx"
+  "main": "./src/index.tsx",
+  "vars": {
+    "SUPER_ADMINS": "manishgautammg7@gmail.com,manishgautammg3994@gmail.com,deepakankit14@gmail.com",
+    "FIREBASE_SERVICE_ACCOUNT_JSON": "",
+    "MAX_ENTITIES_LIMIT": "20",
+    "BLOGGER_API_KEY": "blogger_mock_api_key"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "GOOGLE_OAUTH_TOKEN_KV",
+      "id": "apiworker_google_oauth_token_kv"
+    },
+    {
+      "binding": "FIREBASE_PUBLIC_KEY_KV",
+      "id": "apiworker_firebase_public_key_kv"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "apiworker_db",
+      "database_id": "apiworker_db_id"
+    }
+  ]
 }
